@@ -2,7 +2,14 @@
 
 ## Overview
 
-A personal Homebrew tap for distributing `hc` and `mgmt` — two developer tools currently installable only via `go install` and `uv tool install` respectively. The tap (`will-wright-eng/homebrew-tools`) gives users a single, consistent installation path via `brew install` and keeps versions pinned and auditable.
+A personal Homebrew tap for distributing `hc` and `mgmt` — two developer tools
+currently installable only via `go install` and `uv tool install` respectively.
+The tap (`will-wright-eng/homebrew-tools`, tapped as `will-wright-eng/tools`)
+gives users a single, consistent installation path via `brew install` and keeps
+versions pinned and auditable.
+
+> **Status:** Both formulas are implemented and validated locally —
+> `brew style`, `brew audit --strict`, `brew install`, and `brew test` all pass.
 
 ---
 
@@ -16,35 +23,71 @@ homebrew-tools/
 ├── .github/
 │   └── workflows/
 │       └── audit.yml
-└── README.md
+├── Makefile
+└── readme.md
 ```
 
-Homebrew discovers formulas by looking for `.rb` files under `Formula/`. No other structure is required.
+Homebrew discovers formulas by looking for `.rb` files under `Formula/`. No
+other structure is required. The repo is named `homebrew-tools`; Homebrew strips
+the `homebrew-` prefix, so the tap name is `will-wright-eng/tools`.
 
 ---
 
 ## Formulas
 
-### `hc` (Go binary)
+### `hc` (Go binary — distributed prebuilt)
 
-**Source:** `github.com/will-wright-eng/hc`  
-**Language:** Go  
-**Current install method:** `go install github.com/will-wright-eng/hc/cmd/hc@latest`
+**Source:** `github.com/will-wright-eng/hc`
+**Language:** Go
+**Pinned version:** `v1.3.0`
+**Prior install method:** `go install github.com/will-wright-eng/hc/cmd/hc@latest`
 
-Go binaries are the simplest case for Homebrew. The formula downloads the source tarball for a tagged release and builds it with `go build`. Homebrew handles the `GOPATH` environment and installs the resulting binary into `bin/`.
+`hc` ships a goreleaser release pipeline, so every tagged release publishes
+prebuilt binaries for darwin/linux (amd64 + arm64) plus a `checksums.txt`. The
+formula downloads the prebuilt binary for the user's platform and installs it
+directly — no Go toolchain and no compile step at install time.
+
+This is both faster than building from source and the right answer to the
+Gatekeeper concern that motivated the tap: CLI binaries installed via a Homebrew
+*formula* are not quarantined, so an unsigned/un-notarized binary runs without
+the Gatekeeper block that bites notarization-checked *casks*.
 
 ```ruby
 class Hc < Formula
-  desc "Hot/Cold codebase analysis — finds hotspots by combining git churn with file complexity"
+  desc "Find codebase hotspots by combining git churn with file complexity"
   homepage "https://github.com/will-wright-eng/hc"
-  url "https://github.com/will-wright-eng/hc/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "<sha256 of tarball>"
-  license "MIT"
+  version "1.3.0"
+  license "GPL-3.0-only"
 
-  depends_on "go" => :build
+  livecheck do
+    url :homepage
+    strategy :github_latest
+  end
+
+  on_macos do
+    on_arm do
+      url "https://github.com/will-wright-eng/hc/releases/download/v1.3.0/hc_darwin_arm64.tar.gz"
+      sha256 "fd5741c23840d38a82abaefb139b0354ce96a1fbb471da5f0ed5821644f0084b"
+    end
+    on_intel do
+      url "https://github.com/will-wright-eng/hc/releases/download/v1.3.0/hc_darwin_amd64.tar.gz"
+      sha256 "6b323dd47e26edf79d79aebfa17d4bdae8135ca3c336800568955ff6e7142e1c"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "https://github.com/will-wright-eng/hc/releases/download/v1.3.0/hc_linux_arm64.tar.gz"
+      sha256 "f6e47539927eac0dbfcc8b26561e505ea06acf9312601506a6533ea6e7b7139d"
+    end
+    on_intel do
+      url "https://github.com/will-wright-eng/hc/releases/download/v1.3.0/hc_linux_amd64.tar.gz"
+      sha256 "d41bf7fcbc3c48ef52647fc86c61a0ce9acf75323deb5cfb63c56a61673213e5"
+    end
+  end
 
   def install
-    system "go", "build", *std_go_args(ldflags: "-s -w"), "./cmd/hc"
+    bin.install "hc"
   end
 
   test do
@@ -53,19 +96,35 @@ class Hc < Formula
 end
 ```
 
-**Prerequisites before writing the formula:**
-- Tag a release on the `hc` repo (e.g. `v0.1.0`). The formula URL must point to a pinned tag, not `main`, so the sha256 stays stable.
-- Compute the sha256: `curl -sL <tarball_url> | shasum -a 256`
+**Notes:**
+- `version` is declared explicitly because the release filenames
+  (`hc_darwin_arm64.tar.gz`) carry no version for Homebrew to infer.
+- The archive contains `hc`, `readme.md`, and `CHANGELOG.md` at the root, so
+  `bin.install "hc"` is all that's needed.
+- The `hc` repo currently has **no LICENSE file**. A `GPL-3.0-only` LICENSE must
+  be committed to `will-wright-eng/hc` so that `brew audit --online` (and the
+  formula's `license` field) match the source.
+
+**Where the sha256s come from** (already filled in above for v1.3.0):
+
+```bash
+curl -sL https://github.com/will-wright-eng/hc/releases/download/v1.3.0/checksums.txt
+```
 
 ---
 
 ### `mgmt` (Python CLI)
 
-**Source:** `github.com/will-wright-eng/media-mgmt-cli` / PyPI package `mgmt`  
-**Language:** Python  
-**Current install method:** `uv tool install mgmt`
+**Source:** `github.com/will-wright-eng/media-mgmt-cli` / PyPI package `mgmt`
+**Language:** Python
+**Pinned version:** `0.11.0`
+**Prior install method:** `uv tool install mgmt`
 
-Python CLIs use Homebrew's `virtualenv` helper, which creates an isolated venv under the formula's prefix and installs the package plus all dependencies into it. This avoids any conflict with the system Python or other Homebrew Python tools.
+Python CLIs use Homebrew's `virtualenv` helper, which creates an isolated venv
+under the formula's prefix and installs the package plus all dependencies into
+it. This avoids any conflict with the system Python or other Homebrew Python
+tools. `mgmt` declares `requires-python >=3.9`, so the `python@3.13` pin is well
+within range.
 
 ```ruby
 class Mgmt < Formula
@@ -73,20 +132,14 @@ class Mgmt < Formula
 
   desc "CLI to search and manage media assets in S3 and locally"
   homepage "https://github.com/will-wright-eng/media-mgmt-cli"
-  url "https://files.pythonhosted.org/packages/.../mgmt-0.11.0.tar.gz"
-  sha256 "<sha256 from PyPI>"
+  url "https://files.pythonhosted.org/packages/c5/ad/c984b6650881af01d8fc8791f847908dcfcae300d1aff3980212e52e998a/mgmt-0.11.0.tar.gz"
+  sha256 "e43b3837af90b3dc532f87b801d10f3d7c0aad03198e598d5e92ad9b1d51d48c"
   license "GPL-3.0-only"
 
   depends_on "python@3.13"
 
-  # Dependencies are declared as `resource` blocks.
-  # Run `brew update-python-resources Formula/mgmt.rb` to generate these automatically.
-  resource "boto3" do
-    url "https://files.pythonhosted.org/..."
-    sha256 "..."
-  end
-
-  # ... additional resources ...
+  # 14 `resource` blocks (boto3, botocore, typer, rich, …) generated by
+  # `brew update-python-resources` — see Formula/mgmt.rb for the full set.
 
   def install
     virtualenv_install_with_resources
@@ -98,14 +151,23 @@ class Mgmt < Formula
 end
 ```
 
-**Getting the resource blocks:**  
-After writing an initial formula with just the top-level `url` and `sha256`, run:
+**Getting / refreshing the resource blocks:**
+The formula must live in a tap before `update-python-resources` will run, so
+tap the repo locally first, then regenerate:
 
 ```bash
-brew update-python-resources Formula/mgmt.rb
+brew tap will-wright-eng/tools /path/to/homebrew-tools
+brew update-python-resources will-wright-eng/tools/mgmt
 ```
 
-This resolves the full dependency tree from PyPI and fills in the `resource` blocks automatically.
+This resolves the full dependency tree from PyPI and fills in the `resource`
+blocks automatically. The top-level direct deps are `boto3`, `rich`, and
+`typer`; the rest (botocore, s3transfer, jmespath, pygments, …) are transitive.
+
+> **PATH caveat:** if `mgmt` was previously installed via `uv tool install`, the
+> `~/.local/bin/mgmt` shim shadows the Homebrew one. `brew install` prints a
+> caveat about this; remove the uv install (`uv tool uninstall mgmt`) to let the
+> Homebrew version take over.
 
 ---
 
@@ -113,50 +175,66 @@ This resolves the full dependency tree from PyPI and fills in the `resource` blo
 
 | Tool | Source of truth | How to update |
 |------|----------------|---------------|
-| `hc` | GitHub release tag | Push a new tag; update `url` + `sha256` in formula |
+| `hc` | GitHub release (goreleaser) | Bump `version`; update each `url` + `sha256` from the release's `checksums.txt` |
 | `mgmt` | PyPI release | Update `url` + `sha256`; re-run `brew update-python-resources` |
 
-Neither formula tracks `main`/`HEAD`. Every update requires a deliberate version bump, which keeps installs reproducible.
+Neither formula tracks `main`/`HEAD`. Every update is a deliberate version bump,
+which keeps installs reproducible. The `livecheck` block on `hc` lets
+`brew livecheck` report when a newer release tag is available.
 
 ---
 
 ## CI: Formula Audit
 
-A GitHub Actions workflow runs `brew audit` on every push and PR to catch formula errors early.
+A GitHub Actions workflow runs style, audit, and install/test on every push and
+PR that touches the formulas. (See `.github/workflows/audit.yml`.)
+
+Key points vs. a naive setup:
+- `hc` is installed normally — `--build-from-source` is meaningless for a
+  prebuilt-binary formula. `mgmt` uses `--build-from-source` since it always
+  builds its venv (there are no bottles).
+- `HOMEBREW_NO_REQUIRE_TAP_TRUST=1` lets the workflow tap the checked-out repo
+  non-interactively under newer Homebrew tap-trust rules.
 
 ```yaml
-# .github/workflows/audit.yml
 name: Audit
 
 on:
   push:
-    paths:
-      - "Formula/**"
+    paths: ["Formula/**", ".github/workflows/audit.yml"]
   pull_request:
-    paths:
-      - "Formula/**"
+    paths: ["Formula/**", ".github/workflows/audit.yml"]
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
 
 jobs:
   audit:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
-
       - name: Tap this repo
-        run: brew tap will-wright-eng/tools $(pwd)
-
-      - name: Audit formulas
+        run: brew tap will-wright-eng/tools "$PWD"
+      - name: Style
+        run: brew style will-wright-eng/tools/hc will-wright-eng/tools/mgmt
+      - name: Audit
         run: brew audit --strict will-wright-eng/tools/hc will-wright-eng/tools/mgmt
-
       - name: Install and test hc
-        run: brew install --build-from-source will-wright-eng/tools/hc && brew test will-wright-eng/tools/hc
-
+        run: brew install will-wright-eng/tools/hc && brew test will-wright-eng/tools/hc
       - name: Install and test mgmt
         run: brew install --build-from-source will-wright-eng/tools/mgmt && brew test will-wright-eng/tools/mgmt
 ```
+
+> CI runs on `macos-latest` (arm64). The `hc` formula also carries linux
+> binaries (verified against `checksums.txt`), so the formula works under
+> Linuxbrew even though CI only exercises macOS.
 
 ---
 
@@ -164,20 +242,21 @@ jobs:
 
 **One-time repo setup**
 - [ ] Create `will-wright-eng/homebrew-tools` on GitHub (public)
-- [ ] Add `Formula/` directory with `.rb` files
-- [ ] Add `.github/workflows/audit.yml`
-- [ ] Add `README.md` with install instructions
+- [x] Add `Formula/` directory with `hc.rb` and `mgmt.rb`
+- [x] Add `.github/workflows/audit.yml`
+- [x] Add `readme.md` with install instructions
 
 **For `hc`**
-- [ ] Tag a release on `will-wright-eng/hc` (e.g. `v0.1.0`)
-- [ ] Compute sha256 of the release tarball
-- [ ] Write `Formula/hc.rb`
+- [x] Release tagged on `will-wright-eng/hc` (latest: `v1.3.0`, goreleaser)
+- [x] sha256s pulled from `checksums.txt` into the formula
+- [x] Write `Formula/hc.rb` (prebuilt-binary, multi-platform)
+- [ ] **Add a `GPL-3.0-only` LICENSE to `will-wright-eng/hc`** (repo currently has none)
 
 **For `mgmt`**
-- [ ] Locate the `mgmt 0.11.0` sdist URL on PyPI
-- [ ] Write initial `Formula/mgmt.rb` with top-level url/sha256
-- [ ] Run `brew update-python-resources Formula/mgmt.rb` to populate dependencies
-- [ ] Verify `brew install --build-from-source will-wright-eng/tools/mgmt`
+- [x] Locate the `mgmt 0.11.0` sdist URL + sha256 on PyPI
+- [x] Write `Formula/mgmt.rb` and populate `resource` blocks via `brew update-python-resources`
+- [x] Verify `brew install` + `brew test`
+- [ ] Confirm `media-mgmt-cli` repo ships a `GPL-3.0-only` LICENSE (matches the formula)
 
 ---
 
@@ -204,8 +283,9 @@ brew install will-wright-eng/tools/mgmt
 
 When a new version of either tool is released:
 
-1. Update the `url` in the relevant formula to point to the new tarball.
-2. Update the `sha256` (`curl -sL <url> | shasum -a 256`).
-3. For `mgmt`, re-run `brew update-python-resources` if any dependencies changed.
-4. Open a PR — CI will audit and test before merge.
-5. Merge to `main`. Users get the update on their next `brew upgrade`.
+1. **`hc`:** bump `version`, then refresh each `url` + `sha256` from the new
+   release's `checksums.txt`.
+2. **`mgmt`:** update the top-level `url` + `sha256`, then re-run
+   `brew update-python-resources` if any dependencies changed.
+3. Open a PR — CI will style, audit, install, and test before merge.
+4. Merge to `main`. Users get the update on their next `brew upgrade`.

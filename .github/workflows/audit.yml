@@ -1,0 +1,47 @@
+name: Audit
+
+on:
+  push:
+    paths:
+      - "Formula/**"
+      - ".github/workflows/audit.yml"
+  pull_request:
+    paths:
+      - "Formula/**"
+      - ".github/workflows/audit.yml"
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
+
+jobs:
+  audit:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Tap this repo
+        run: brew tap will-wright-eng/tools "$PWD"
+
+      - name: Style
+        run: brew style will-wright-eng/tools/hc will-wright-eng/tools/mgmt
+
+      - name: Audit
+        run: brew audit --strict will-wright-eng/tools/hc will-wright-eng/tools/mgmt
+
+      - name: Install and test hc
+        run: |
+          brew install will-wright-eng/tools/hc
+          brew test will-wright-eng/tools/hc
+
+      - name: Install and test mgmt
+        run: |
+          brew install --build-from-source will-wright-eng/tools/mgmt
+          brew test will-wright-eng/tools/mgmt
