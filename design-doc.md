@@ -19,8 +19,9 @@ downloaded executable. `Homebrew/deprecate_disable.rb` exposes `:fails_gatekeepe
 only as a cask deprecation reason, and the audit that enforces it lives in
 `Library/Homebrew/cask/audit.rb`. This tap is unaffected.
 
-Three formulas — `hc`, `mgmt`, and `sosig` — ship in the first commit. The remaining
-three are blocked on changes in their own repositories; see
+All six formulas are committed. Three — `hc`, `mgmt`, and `sosig` — are installable
+today. The other three are written and verified but carry placeholder checksums until
+their repos are tagged; see
 [Prerequisites](#prerequisites-blocking-work-outside-this-repo).
 
 ---
@@ -38,7 +39,7 @@ Facts below were read from each repository and from PyPI, not assumed.
 | `mgmt` | `will-wright-eng/media-mgmt-cli` | Python ≥3.9 | `mgmt` | GPL-3.0-or-later | Tagged `v0.11.0`; on PyPI as `mgmt` |
 | `mdcsv` | `will-wright-eng/mdcsv` | Go 1.23.4 | `mdcsv` | **none** | **No tags, no releases** |
 
-Three tools are blocked on prerequisites in their own repos, and `sosig` ships with two
+Three tools are blocked on tags in their own repos, and `sosig` ships with two
 non-blocking upstream fixes outstanding; see
 [Prerequisites](#prerequisites-blocking-work-outside-this-repo).
 
@@ -62,7 +63,10 @@ second name is one more thing to keep in sync for no discoverability gain.
 ```
 homebrew-tools/
 ├── Formula/
+│   ├── g3.rb
 │   ├── hc.rb
+│   ├── loch.rb
+│   ├── mdcsv.rb
 │   ├── mgmt.rb
 │   └── sosig.rb
 ├── .github/
@@ -72,9 +76,10 @@ homebrew-tools/
 └── readme.md
 ```
 
-`Formula/loch.rb`, `Formula/g3.rb`, and `Formula/mdcsv.rb` join this tree once their
-repos are tagged. Their designs are specified below so that adding them is transcription
-rather than fresh work.
+`g3.rb`, `loch.rb`, and `mdcsv.rb` are committed with a placeholder `sha256`. Their build
+logic was verified against pinned commits of each repo's `main` (see
+[Interim option](#interim-option-pinned-commit-urls)), so tagging reduces to swapping the
+`url` and filling in the real checksum.
 
 Homebrew discovers formulas from `.rb` files under `Formula/`. The class name is the
 CamelCased filename (`g3.rb` → `class G3`), and the default install target is
@@ -260,8 +265,9 @@ end
 `loch` derives `clap::Parser` with `version` (`src/main.rs:10-15`), so `--version` prints
 the `Cargo.toml` version and `--help` exits `0`.
 
-The Rust build is the slowest in the tap — `gix` and `tokei` are pinned to exact
-versions (`=0.85.0`, `=14.0.0`) and pull a large dependency tree.
+`gix` and `tokei` are pinned to exact versions (`=0.85.0`, `=14.0.0`) and pull a large
+dependency tree, but the build parallelises well: 30 seconds on an arm64 Mac. The
+slowest formula in the tap is `sosig`, which compiles `pydantic-core` from Rust source.
 
 ---
 
@@ -493,9 +499,11 @@ version "0.1.0"   # required: Homebrew cannot infer a version from a SHA URL
 sha256 "e389ce02d79cccb06e695beafa5851195a5d250797468f8ff8914c37675dbd8d"
 ```
 
-**This was verified end to end**: with exactly the above URL/version/sha256, `brew audit
---strict` passed, `brew install --build-from-source` built and installed the binary, and
-`brew test` passed against the real `mdcsv --help` output.
+**This was verified end to end** for all three blocked formulas. With a pinned-commit
+`url`/`version`/`sha256` substituted into each, `brew audit --strict` passed, and
+`brew install --build-from-source` plus `brew test` succeeded: `mdcsv` in 2s, `g3` in
+3s, `loch` in 30s. Only the `url` and `sha256` lines differ from the committed
+formulas, so tagging cannot break the build logic.
 
 Tagging is still preferred — a `version` that is unrelated to any upstream marker is a
 maintenance trap — and it is the route taken here. The three blocked tools wait for tags
@@ -586,8 +594,9 @@ matter:
 - Building `sosig` compiles `pydantic-core` from Rust source, which is slow. The job
   needs a generous timeout.
 
-The matrix lists only the formulas that exist. Each of `loch`, `g3`, and `mdcsv` is added
-to it in the same commit that adds its `.rb` file.
+The matrix covers all six formulas. The three awaiting upstream tags carry placeholder
+checksums, so their CI jobs fail at the download step until the `url`/`sha256` pair is
+filled in — a visible reminder rather than a silent gap.
 
 ```yaml
 # .github/workflows/audit.yml
@@ -613,7 +622,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        formula: [hc, mgmt, sosig]
+        formula: [hc, loch, g3, mdcsv, mgmt, sosig]
     steps:
       - uses: actions/checkout@v4
 
@@ -646,20 +655,20 @@ explicit three steps above are easier to reason about for a personal tap.
 ## Setup Checklist
 
 **One-time repo setup**
-- [ ] Add `Formula/` with the three shippable `.rb` files
-- [ ] Add `.github/workflows/audit.yml`
-- [ ] Expand `readme.md` with install instructions
+- [x] Add `Formula/` with the six `.rb` files
+- [x] Add `.github/workflows/audit.yml`
+- [x] Expand `readme.md` with install instructions
 
 **Ready now (no upstream changes needed)**
-- [ ] `Formula/hc.rb` — tag `v1.4.1`, sha256 already computed
-- [ ] `Formula/mgmt.rb` — PyPI sdist pinned; run `brew update-python-resources`
-- [ ] `Formula/sosig.rb` — wheel pattern verified; run
-      `brew update-python-resources --package-name sosig`
+- [x] `Formula/hc.rb` — tag `v1.4.1`, sha256 verified; installs and tests clean
+- [x] `Formula/mgmt.rb` — PyPI sdist pinned; 14 resources generated
+- [x] `Formula/sosig.rb` — wheel pattern verified; 14 resources generated via
+      `--package-name sosig`
 
-**Blocked on the tool's own repo**
-- [ ] `loch` — add a GPL-3 LICENSE, tag `v0.1.0`, then write `Formula/loch.rb`
-- [ ] `g3` — tag `v0.1.0`, then write `Formula/g3.rb`
-- [ ] `mdcsv` — add a GPL-3 LICENSE, tag `v0.1.0`, then write `Formula/mdcsv.rb`
+**Blocked on the tool's own repo** — formula written, awaiting an immutable `url`
+- [ ] `loch` — add a GPL-3 LICENSE, tag `v0.1.0`, then fill in `Formula/loch.rb`'s `sha256`
+- [ ] `g3` — tag `v0.1.0`, then fill in `Formula/g3.rb`'s `sha256`
+- [ ] `mdcsv` — add a GPL-3 LICENSE, tag `v0.1.0`, then fill in `Formula/mdcsv.rb`'s `sha256`
 
 **Non-blocking upstream follow-ups**
 - [ ] `social-signals` — add a LICENSE file

@@ -1,0 +1,40 @@
+name: Audit
+
+on:
+  push:
+    paths:
+      - "Formula/**"
+      - ".github/workflows/audit.yml"
+  pull_request:
+    paths:
+      - "Formula/**"
+      - ".github/workflows/audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        formula: [hc, loch, g3, mdcsv, mgmt, sosig]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Tap this working copy
+        run: brew tap will-wright-eng/tools "$(pwd)"
+
+      - name: Audit
+        run: brew audit --strict will-wright-eng/tools/${{ matrix.formula }}
+
+      - name: Install
+        run: brew install --build-from-source will-wright-eng/tools/${{ matrix.formula }}
+
+      - name: Test
+        run: brew test will-wright-eng/tools/${{ matrix.formula }}
