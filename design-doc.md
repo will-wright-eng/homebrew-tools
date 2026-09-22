@@ -19,6 +19,10 @@ downloaded executable. `Homebrew/deprecate_disable.rb` exposes `:fails_gatekeepe
 only as a cask deprecation reason, and the audit that enforces it lives in
 `Library/Homebrew/cask/audit.rb`. This tap is unaffected.
 
+Three formulas — `hc`, `mgmt`, and `sosig` — ship in the first commit. The remaining
+three are blocked on changes in their own repositories; see
+[Prerequisites](#prerequisites-blocking-work-outside-this-repo).
+
 ---
 
 ## Tool Inventory
@@ -28,13 +32,14 @@ Facts below were read from each repository and from PyPI, not assumed.
 | Tool | Repo | Language | Binary | License | Release state |
 |------|------|----------|--------|---------|---------------|
 | `hc` | `will-wright-eng/hc` | Go 1.26.1 | `hc` | GPL-3.0-or-later | Tagged: `v1.4.1`, goreleaser assets |
-| `loch` | `will-wright-eng/loch` | Rust 1.87 | `loch` | **none** | **No tags, no releases** |
+| `loch` | `will-wright-eng/loch` | Rust 1.85 | `loch` | **none** | **No tags, no releases** |
 | `g3` | `will-wright-eng/gists3` | Go 1.22 | `g3` | MIT | **No tags, no releases** |
 | `sosig` | `will-wright-eng/social-signals` | Python ≥3.10 | `sosig` | **none** | Tagged `v0.3.0`; on PyPI as `sosig` |
 | `mgmt` | `will-wright-eng/media-mgmt-cli` | Python ≥3.9 | `mgmt` | GPL-3.0-or-later | Tagged `v0.11.0`; on PyPI as `mgmt` |
 | `mdcsv` | `will-wright-eng/mdcsv` | Go 1.23.4 | `mdcsv` | **none** | **No tags, no releases** |
 
-Three tools are blocked on prerequisites in their own repos; see
+Three tools are blocked on prerequisites in their own repos, and `sosig` ships with two
+non-blocking upstream fixes outstanding; see
 [Prerequisites](#prerequisites-blocking-work-outside-this-repo).
 
 ### Name collisions
@@ -47,7 +52,8 @@ core. Within a tap, a colliding name is still installable via the fully-qualifie
 
 Note the `gists3` repo ships **two** commands under `cmd/`: `g3` (the real CLI) and
 `example`. The formula is named `g3` after the binary, not after the repo, and builds
-only `./cmd/g3`.
+only `./cmd/g3`. No `gists3` alias is provided: the command users type is `g3`, and a
+second name is one more thing to keep in sync for no discoverability gain.
 
 ---
 
@@ -56,10 +62,7 @@ only `./cmd/g3`.
 ```
 homebrew-tools/
 ├── Formula/
-│   ├── g3.rb
 │   ├── hc.rb
-│   ├── loch.rb
-│   ├── mdcsv.rb
 │   ├── mgmt.rb
 │   └── sosig.rb
 ├── .github/
@@ -68,6 +71,10 @@ homebrew-tools/
 ├── design-doc.md
 └── readme.md
 ```
+
+`Formula/loch.rb`, `Formula/g3.rb`, and `Formula/mdcsv.rb` join this tree once their
+repos are tagged. Their designs are specified below so that adding them is transcription
+rather than fresh work.
 
 Homebrew discovers formulas from `.rb` files under `Formula/`. The class name is the
 CamelCased filename (`g3.rb` → `class G3`), and the default install target is
@@ -83,17 +90,20 @@ Go is the simplest case. Homebrew provides `std_go_args`, which sets `-o bin/<na
 `-trimpath`, and the module flags. Homebrew's `go` is 1.27.1, which satisfies every
 `go` directive in the three repos (1.26.1, 1.22, 1.23.4).
 
-`std_go_args(ldflags:)` already prepends `-s -w` unless `HOMEBREW_BUILD_FROM_SOURCE`
-debug symbols are requested, so passing `ldflags: "-s -w"` duplicates them. Pass only
-the flags the project actually needs.
+`std_go_args(ldflags:)` already prepends `-s -w` unless debug symbols are requested
+(`formula.rb:2308` tests `ENV.debug_symbols?`, which `brew install --debug-symbols`
+sets), so passing `ldflags: "-s -w"` duplicates them. Pass only the flags the project
+actually needs.
 
 #### `hc`
 
-`hc` declares `version` and `commit` as `main`-package variables (`cmd/hc/main.go:26-27`)
-and renders them through `Version: fmt.Sprintf("%s (%s)", version, commit)`. Built
-without ldflags it reports `dev (none)`. Homebrew's `std_go_args(ldflags: :goreleaser)`
-injects `main.version`, `main.commit`, `main.date`, and `main.builtBy` — matching the
-variable names `hc`'s own `.goreleaser.yaml` sets. Use it so `hc --version` is truthful.
+`hc` declares `version` and `commit` as `main`-package variables (`cmd/hc/main.go:25-28`)
+and renders them through `Version: fmt.Sprintf("%s (%s)", version, commit)`
+(`cmd/hc/main.go:102`). Built without ldflags it reports `dev (none)`. Homebrew's
+`std_go_args(ldflags: :goreleaser)` injects `main.version`, `main.commit`, `main.date`,
+and `main.builtBy`; `hc`'s own `.goreleaser.yaml` sets only the first two, so `date` and
+`builtBy` are written to variables the program does not declare — harmless, and the two
+that matter line up. Use it so `hc --version` is truthful.
 
 ```ruby
 class Hc < Formula
@@ -103,6 +113,11 @@ class Hc < Formula
   sha256 "590cae7805d61d319456db04e3ffc35742b0167b8e70b9623efbd12689370236"
   license "GPL-3.0-or-later"
   head "https://github.com/will-wright-eng/hc.git", branch: "main"
+
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
 
   depends_on "go" => :build
 
@@ -134,8 +149,13 @@ class Mdcsv < Formula
   homepage "https://github.com/will-wright-eng/mdcsv"
   url "https://github.com/will-wright-eng/mdcsv/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "<sha256 of the v0.1.0 tarball, once tagged>"
-  license "MIT" # no LICENSE file upstream yet; see Prerequisites
+  license "GPL-3.0-or-later" # no LICENSE file upstream yet; see Prerequisites
   head "https://github.com/will-wright-eng/mdcsv.git", branch: "main"
+
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
 
   depends_on "go" => :build
 
@@ -169,6 +189,11 @@ class G3 < Formula
   license "MIT"
   head "https://github.com/will-wright-eng/gists3.git", branch: "main"
 
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
   depends_on "go" => :build
 
   def install
@@ -190,12 +215,14 @@ vendor and the build is fully offline after the tarball is fetched.
 ### Rust formula: `loch`
 
 Homebrew provides `std_cargo_args`, which expands to
-`--jobs N --locked --root=#{prefix} --path=.` (`formula.rb:2211`). The `--locked` flag
-requires a committed `Cargo.lock` — `loch` has one.
+`--jobs N --locked --root=#{prefix} --path=.` (`formula.rb:2219`). It also appends
+`--offline`, but only for formulas that define their own `fetch` method; `loch` does
+not, so the flag does not apply here. The `--locked` flag requires a committed
+`Cargo.lock` — `loch` has one.
 
 Two facts from `Cargo.toml` shape this formula:
 
-- `rust-version = "1.87"`; Homebrew's `rust` is 1.98.1, so the toolchain is satisfied.
+- `rust-version = "1.85"`; Homebrew's `rust` is 1.98.1, so the toolchain is satisfied.
 - A comment in the manifest records that the crates.io name `loch` is squatted by a
   dormant 2019 crate. That only matters for `cargo install loch` from the registry;
   building from the GitHub tarball with `--path=.` bypasses crates.io entirely, and the
@@ -209,8 +236,13 @@ class Loch < Formula
   homepage "https://github.com/will-wright-eng/loch"
   url "https://github.com/will-wright-eng/loch/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "<sha256 of the v0.1.0 tarball, once tagged>"
-  license "MIT" # no LICENSE file upstream yet; see Prerequisites
+  license "GPL-3.0-or-later" # no LICENSE file upstream yet; see Prerequisites
   head "https://github.com/will-wright-eng/loch.git", branch: "main"
+
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
 
   depends_on "rust" => :build
 
@@ -225,7 +257,7 @@ class Loch < Formula
 end
 ```
 
-`loch` derives `clap::Parser` with `version` (`src/main.rs:14`), so `--version` prints
+`loch` derives `clap::Parser` with `version` (`src/main.rs:10-15`), so `--version` prints
 the `Cargo.toml` version and `--help` exits `0`.
 
 The Rust build is the slowest in the tap — `gix` and `tokei` are pinned to exact
@@ -245,8 +277,14 @@ Two non-obvious mechanics drive the design, both confirmed by reading
   **staged source root** (`buildpath`). It therefore assumes the main `url` is an sdist
   that unpacks to a buildable directory.
 - Homebrew's `pip_install` runs pip with `--no-binary=:all:`, forcing *every* dependency
-  to build from source. Any dependency with a compiled extension needs its build
-  toolchain declared as a formula-level `depends_on ... => :build`.
+  to build from source. The flag itself comes from `std_pip_args`
+  (`formula.rb:2347`), which `pip_install` reaches via its private `do_install`. Any
+  dependency with a compiled extension needs its build toolchain declared as a
+  formula-level `depends_on ... => :build`.
+
+Both formulas pin `python@3.14`, Homebrew's current default. Bumping to a later Python
+means editing two places in `sosig.rb` — the `depends_on` line and the
+`virtualenv_create` call — and one in `mgmt.rb`.
 
 #### `mgmt`
 
@@ -272,7 +310,12 @@ class Mgmt < Formula
   sha256 "e43b3837af90b3dc532f87b801d10f3d7c0aad03198e598d5e92ad9b1d51d48c"
   license "GPL-3.0-or-later"
 
-  depends_on "python@3.13"
+  livecheck do
+    url :stable
+    strategy :pypi
+  end
+
+  depends_on "python@3.14"
 
   # Generated by `brew update-python-resources Formula/mgmt.rb`.
   # Transitive deps of boto3, rich, and typer.
@@ -328,7 +371,7 @@ was found by hitting the failure, not by guessing:
    `--no-binary=:all:`, the prebuilt `pydantic-core` wheel is ignored and it is compiled
    from source. Without the Rust toolchain the build dies at
    `Failed to build 'pydantic_core-2.46.5' when installing build dependencies`.
-   Homebrew's own audit requires `rust` be listed before `python@3.13`.
+   Homebrew's own audit requires `rust` be listed before `python@3.14`.
 
 ```ruby
 class Sosig < Formula
@@ -341,9 +384,16 @@ class Sosig < Formula
   url "https://files.pythonhosted.org/packages/0c/91/5a0be09985bb88704534f2b733c0b03c99586770a292d8d8e22501ef411d/sosig-0.3.0-py3-none-any.whl", using: :nounzip
   sha256 "7097eb473b1d620a08f0bdd38ac34686bcb1756c63d186b206f57e56eb4eb0f5"
 
+  # `strategy :pypi` derives the package name from the filename and reads
+  # "sosig-0.3.0-py3-none" off a wheel URL, so the project page is named directly.
+  livecheck do
+    url "https://pypi.org/pypi/sosig/json"
+    regex(/"version":\s*"([^"]+)"/i)
+  end
+
   # pip runs with --no-binary=:all:, so pydantic-core is built from Rust source.
   depends_on "rust" => :build
-  depends_on "python@3.13"
+  depends_on "python@3.14"
 
   # Generated by:
   #   brew update-python-resources --package-name sosig Formula/sosig.rb
@@ -359,7 +409,7 @@ class Sosig < Formula
     wheel = buildpath/"sosig-#{version}-py3-none-any.whl"
     cp cached_download, wheel
 
-    venv = virtualenv_create(libexec, "python3.13")
+    venv = virtualenv_create(libexec, "python3.14")
     venv.pip_install resources
     venv.pip_install_and_link wheel
   end
@@ -378,7 +428,9 @@ final target swapped.
 parses the main `url` with a regex that only accepts `.tar.gz`/`.zip`
 (`utils/pypi.rb:171`) and fails on a wheel URL with
 `Error: Package should be a valid PyPI URL`. Passing `--package-name sosig` skips that
-inference. This resolved 14 resources successfully.
+inference. This resolved 14 resources successfully. The same wheel-versus-sdist
+assumption breaks `livecheck`'s `:pypi` strategy, which is why that block names the
+project URL outright.
 
 **This formula was built and installed end to end.** In a scratch tap, `brew audit
 --strict` passed, `brew install --build-from-source` completed in 1m23s (22.5MB, 1,092
@@ -386,12 +438,15 @@ files), and `brew test` passed.
 
 The upstream fix is to set `readme` to a path inside `sosig/` (or drop it and rely on
 `project.readme` defaults) and republish; the formula could then use the normal sdist
-pattern. That is a change to the `social-signals` repo, not to this one.
+pattern and the ordinary `strategy :pypi` livecheck. That is a change to the
+`social-signals` repo, not to this one.
 
-Both Python formulas also leave a side effect worth knowing: `sosig` creates
-`~/.local/share/sosig/` on **import**, not on first command, because its
-`__init__.py` calls `get_db()` at module scope. `brew test` triggers this. It is
-harmless but not idiomatic.
+`sosig` also leaves a side effect worth knowing: it creates its data directory on
+**import**, not on first command, because its `__init__.py` calls `get_db()` at module
+scope. The location is XDG-aware — `$XDG_DATA_HOME/sosig` when that variable is set,
+otherwise `~/.local/share/sosig/` (`src/sosig/core/config.py:18-27`). `brew test`
+triggers this. It is harmless but not idiomatic. `mgmt` has no equivalent behaviour; its
+`__init__.py` is a bare re-export.
 
 ---
 
@@ -407,18 +462,26 @@ branch tarball's `sha256` changes on every push, breaking every install.
 | `g3` | No tags/releases | `git tag v0.1.0 && git push --tags` (LICENSE is MIT, present) |
 | `mdcsv` | No tags/releases; **no LICENSE** | `git tag v0.1.0 && git push --tags`; add a LICENSE file |
 
+`sosig` ships now but carries two upstream fixes that are not blocking:
+`social-signals` has **no LICENSE file** (the GitHub API reports none, and PyPI carries
+no license metadata), and its sdist is unbuildable. Both should be fixed and the package
+republished; the second is what would let the formula drop the wheel machinery.
+
 ### On the missing licenses
 
 `brew audit --strict` does **not** fail a tap formula for a missing `license` stanza —
-only for a non-SPDX identifier. But omitting it is wrong for a different reason: with no
-LICENSE file, `loch` and `mdcsv` are "all rights reserved" by default, and distributing
-them via a public tap invites users to install code they have no license to use. Add a
-LICENSE before tagging. MIT matches `gists3`'s existing choice.
+only for a non-SPDX or deprecated identifier. But omitting it is wrong for a different
+reason: with no LICENSE file, `loch`, `mdcsv`, and `social-signals` are "all rights
+reserved" by default, and distributing them via a public tap invites users to install
+code they have no license to use. Add a LICENSE before tagging.
 
-For the two GPL tools, the correct SPDX identifier is **`GPL-3.0-or-later`**, not
-`GPL-3.0-only`. Both LICENSE files include the standard "either version 3 of the
+`loch` and `mdcsv` take **`GPL-3.0-or-later`**, matching `hc` and `mgmt`. GPL is the
+default for tools authored here; `gists3`'s MIT is the exception, not the pattern.
+
+For the GPL tools, the correct SPDX identifier is `GPL-3.0-or-later`, not
+`GPL-3.0-only`. The LICENSE files include the standard "either version 3 of the
 License, or (at your option) any later version" grant. `GPL-3.0` (no suffix) is
-deprecated in the SPDX list and should not be used.
+deprecated in the SPDX list and should not be used — `brew audit --strict` rejects it.
 
 ### Interim option: pinned-commit URLs
 
@@ -435,14 +498,18 @@ sha256 "e389ce02d79cccb06e695beafa5851195a5d250797468f8ff8914c37675dbd8d"
 `brew test` passed against the real `mdcsv --help` output.
 
 Tagging is still preferred — a `version` that is unrelated to any upstream marker is a
-maintenance trap. Treat pinned commits as a bridge, not a destination.
+maintenance trap — and it is the route taken here. The three blocked tools wait for tags
+rather than shipping on pinned commits. Treat pinned commits as a bridge available if a
+tool needs to ship before its repo is ready, not as a destination.
 
 ### `head` blocks
 
-Each formula above includes a `head` stanza so `brew install --HEAD <tool>` tracks
-`main`. This is allowed in taps (`formula_auditor.rb:875` only rejects *HEAD-only*
-formulas, and only for core). It gives a supported way to install untagged work without
-compromising the stable, checksummed path.
+The four source-built formulas (`hc`, `loch`, `g3`, `mdcsv`) each include a `head`
+stanza so `brew install --HEAD <tool>` tracks `main`. This is allowed in taps
+(`formula_auditor.rb:875` only rejects *HEAD-only* formulas, and only for core). It
+gives a supported way to install untagged work without compromising the stable,
+checksummed path. The two Python formulas have no `head`: their `url` points at a
+published PyPI artifact rather than a git remote.
 
 ---
 
@@ -482,10 +549,18 @@ length). The rewrite above is deliberate.
 No formula tracks a moving branch on its stable path. Every update is a deliberate,
 reviewable commit.
 
-### Optional: `livecheck`
+Every formula also builds from source on the user's machine; none ship prebuilt
+binaries. `hc` publishes goreleaser assets for darwin/linux × amd64/arm64, so a
+binary-download formula (`on_macos`/`on_arm` blocks selecting the right asset) would
+install in seconds instead of minutes — but that is also the point at which Gatekeeper
+becomes relevant again, since an unsigned downloaded binary is exactly what the
+deprecation in `readme.md` targets. Source builds sidestep it and keep every formula
+uniform. Revisit if `loch`'s Rust build time becomes annoying once it ships.
 
-Adding a `livecheck` block lets `brew livecheck` report when a formula is behind
-upstream, which is the cheap way to avoid a stale tap:
+### `livecheck`
+
+Every formula carries a `livecheck` block so `brew livecheck` reports when the tap is
+behind upstream. The four GitHub-sourced formulas use:
 
 ```ruby
 livecheck do
@@ -494,7 +569,10 @@ livecheck do
 end
 ```
 
-For the two PyPI-sourced formulas, use `url :stable` with `strategy :pypi` instead.
+`mgmt` uses `url :stable` with `strategy :pypi`. `sosig` cannot: the strategy derives a
+package name from the URL filename, which yields `sosig-0.3.0-py3-none` for a wheel and
+requests a project page that does not exist. Its block names
+`https://pypi.org/pypi/sosig/json` directly and matches the version out of the JSON.
 
 ---
 
@@ -507,6 +585,9 @@ matter:
   tests the committed formulas rather than whatever is published.
 - Building `sosig` compiles `pydantic-core` from Rust source, which is slow. The job
   needs a generous timeout.
+
+The matrix lists only the formulas that exist. Each of `loch`, `g3`, and `mdcsv` is added
+to it in the same commit that adds its `.rb` file.
 
 ```yaml
 # .github/workflows/audit.yml
@@ -532,7 +613,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        formula: [hc, loch, g3, mdcsv, mgmt, sosig]
+        formula: [hc, mgmt, sosig]
     steps:
       - uses: actions/checkout@v4
 
@@ -552,8 +633,8 @@ jobs:
         run: brew test will-wright-eng/tools/${{ matrix.formula }}
 ```
 
-A matrix is used rather than one job over all six so a single broken formula does not
-mask the others, and so the slow Rust builds run in parallel with the fast Go ones.
+A matrix is used rather than one job over all formulas so a single broken formula does
+not mask the others, and so the slow Rust builds run in parallel with the fast Go ones.
 `fail-fast: false` keeps the rest running after one failure.
 
 `brew test-bot` is the alternative to hand-rolling audit/install/test. It is what
@@ -565,7 +646,7 @@ explicit three steps above are easier to reason about for a personal tap.
 ## Setup Checklist
 
 **One-time repo setup**
-- [ ] Add `Formula/` with the six `.rb` files
+- [ ] Add `Formula/` with the three shippable `.rb` files
 - [ ] Add `.github/workflows/audit.yml`
 - [ ] Expand `readme.md` with install instructions
 
@@ -576,9 +657,14 @@ explicit three steps above are easier to reason about for a personal tap.
       `brew update-python-resources --package-name sosig`
 
 **Blocked on the tool's own repo**
-- [ ] `loch` — add LICENSE, tag `v0.1.0`, then write `Formula/loch.rb`
+- [ ] `loch` — add a GPL-3 LICENSE, tag `v0.1.0`, then write `Formula/loch.rb`
 - [ ] `g3` — tag `v0.1.0`, then write `Formula/g3.rb`
-- [ ] `mdcsv` — add LICENSE, tag `v0.1.0`, then write `Formula/mdcsv.rb`
+- [ ] `mdcsv` — add a GPL-3 LICENSE, tag `v0.1.0`, then write `Formula/mdcsv.rb`
+
+**Non-blocking upstream follow-ups**
+- [ ] `social-signals` — add a LICENSE file
+- [ ] `social-signals` — fix `readme = "../README.md"`, republish, then move
+      `Formula/sosig.rb` to the sdist pattern
 
 **Per-formula verification loop**
 
@@ -600,7 +686,7 @@ repairs it.
 
 ```bash
 brew tap will-wright-eng/tools
-brew install hc loch g3 mdcsv mgmt sosig
+brew install hc mgmt sosig
 ```
 
 Or without tapping first:
@@ -630,24 +716,6 @@ the PR; `brew bump-python-resources-pr` does the same for the resource blocks.
 
 ---
 
-## Open Decisions
-
-1. **Build from source vs. ship bottles.** Every formula here builds on the user's
-   machine. `hc` already publishes goreleaser binaries for darwin/linux × amd64/arm64,
-   so a binary-download formula (`on_macos`/`on_arm` blocks selecting the right asset)
-   would install in seconds instead of minutes. That is also the point at which
-   Gatekeeper becomes relevant again, since an unsigned downloaded binary is exactly
-   what the deprecation in `readme.md` targets. Building from source sidesteps it.
-   Recommendation: keep source builds; revisit if `loch`'s Rust build time becomes
-   annoying.
-2. **Whether `sosig` belongs in the tap at all**, given it needs a Rust toolchain to
-   install a Python CLI. Fixing the upstream sdist does not remove that — the
-   `--no-binary=:all:` policy is Homebrew's, not the package's.
-3. **Repo-name vs. binary-name for `gists3`.** The formula is proposed as `g3` to match
-   the binary. An alias (`aliases ["gists3"]`) could make both names work.
-
----
-
 ## References
 
 - [Homebrew Formula Cookbook](https://docs.brew.sh/Formula-Cookbook)
@@ -658,4 +726,4 @@ the PR; `brew bump-python-resources-pr` does the same for the resource blocks.
 - [SPDX License List](https://spdx.org/licenses/) — `GPL-3.0-or-later`, `MIT`
 - [PEP 427 — The Wheel Binary Package Format](https://peps.python.org/pep-0427/) — wheel filename rules
 - [Homebrew discussion #6482](https://github.com/orgs/Homebrew/discussions/6482) — the Gatekeeper/custom-tap thread in `readme.md`
-- Homebrew source consulted directly: `Library/Homebrew/formula.rb` (`std_go_args`, `std_cargo_args`), `Library/Homebrew/language/python.rb` (`virtualenv_install_with_resources`, `pip_install`), `Library/Homebrew/formula_assertions.rb` (`shell_output`), `Library/Homebrew/rubocops/shared/desc_helper.rb`, `Library/Homebrew/utils/pypi.rb`
+- Homebrew source consulted directly: `Library/Homebrew/formula.rb` (`std_go_args`, `std_cargo_args`, `std_pip_args`), `Library/Homebrew/language/python.rb` (`virtualenv_install_with_resources`, `pip_install`), `Library/Homebrew/formula_assertions.rb` (`shell_output`), `Library/Homebrew/rubocops/shared/desc_helper.rb`, `Library/Homebrew/utils/pypi.rb`, `Library/Homebrew/livecheck/strategy/pypi.rb`
