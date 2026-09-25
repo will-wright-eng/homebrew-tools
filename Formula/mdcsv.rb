@@ -2,7 +2,7 @@ class Mdcsv < Formula
   desc "Convert between markdown tables and CSV"
   homepage "https://github.com/will-wright-eng/mdcsv"
   url "https://github.com/will-wright-eng/mdcsv/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "356fef732a661ae61b02bc33af44bfa26d7a496c28e0a4c4287134f779323953"
   license "GPL-3.0-or-later"
   head "https://github.com/will-wright-eng/mdcsv.git", branch: "main"
 
