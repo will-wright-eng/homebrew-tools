@@ -9,6 +9,7 @@ on:
     paths:
       - "Formula/**"
       - ".github/workflows/audit.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

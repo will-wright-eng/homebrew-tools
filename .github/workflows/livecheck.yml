@@ -1,0 +1,68 @@
+name: Livecheck
+
+on:
+  schedule:
+    - cron: "0 14 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  livecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      TAP: will-wright-eng/tools
+      BRANCH: livecheck/bump
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
+
+      # livecheck exits non-zero when any formula errors; the bump script reports
+      # those errors itself, after bumping the formulae that did resolve.
+      - name: Livecheck
+        run: brew livecheck --tap "$TAP" --json > "$RUNNER_TEMP/livecheck.json" || true
+
+      - name: Bump outdated formulae
+        id: bump
+        run: python3 .github/scripts/bump_formula.py "$RUNNER_TEMP/livecheck.json" --pr-body "$RUNNER_TEMP/pr-body.md"
+
+      - name: Open pull request
+        if: ${{ !cancelled() && steps.bump.outputs.bumped != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.bump.outputs.title }}
+        run: |
+          git switch -C "$BRANCH"
+          git add Formula
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "$TITLE"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq length)" -gt 0 ]; then
+            gh pr edit "$BRANCH" --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
+          fi
+
+      # Pushes made with GITHUB_TOKEN don't trigger other workflows, but a
+      # workflow_dispatch does, so audit the branch explicitly.
+      - name: Audit bumped formulae
+        if: ${{ !cancelled() && steps.bump.outputs.bumped != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run audit.yml --ref "$BRANCH"
