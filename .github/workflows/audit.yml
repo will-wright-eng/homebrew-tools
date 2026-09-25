@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: macos-latest
@@ -21,17 +25,21 @@ jobs:
       fail-fast: false
       matrix:
         formula: [hc, loch, g3, mdcsv, mgmt, sosig]
+    env:
+      FORMULA: will-wright-eng/tools/${{ matrix.formula }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@main
+        uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478 # main
 
       - name: Audit
-        run: brew audit --strict will-wright-eng/tools/${{ matrix.formula }}
+        run: brew audit --strict "$FORMULA"
 
       - name: Install
-        run: brew install --build-from-source will-wright-eng/tools/${{ matrix.formula }}
+        run: brew install --build-from-source "$FORMULA"
 
       - name: Test
-        run: brew test will-wright-eng/tools/${{ matrix.formula }}
+        run: brew test "$FORMULA"
