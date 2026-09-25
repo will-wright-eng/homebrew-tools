@@ -3,13 +3,15 @@
 ## Summary
 
 Three of the six formulas (`hc`, `mgmt`, `sosig`) install today. Upstream, `gists3`
-and `loch` are now released with their LICENSEs, so `g3` and `loch` only need real
-checksums in this tap. `mdcsv` has its LICENSE but no release yet. `social-signals`
-has been restructured and relicensed, but `0.3.1` is not published. `hc` and
-`media-mgmt-cli` are unchanged. Nothing in this tap has changed yet, and CI has never
-run successfully. This document lists, in order, the tasks that make all six formulas
-valid. Upstream state was last checked on 2026-09-24 (see
-[Upstream Check](#upstream-check-2026-09-24)).
+and `loch` are released with their LICENSEs, so `g3` and `loch` only need real
+checksums in this tap. `mdcsv` has its LICENSE but no release yet. `sosig` `0.3.1` is
+now on PyPI with a clean sdist and a GPL license, so T5.5 is unblocked. `hc` added the
+or-later notice and tagged `v1.4.2`, but the GitHub release is still a draft.
+`media-mgmt-cli` fixed its license metadata and created a `v0.12.0` release, but the
+PyPI publish failed because `pyproject.toml` still says `0.11.0`. Nothing in this tap
+has changed yet, and CI has never run successfully. This document lists, in order,
+the tasks that make all six formulas valid. Upstream state was last checked on
+2026-09-24 (see [Upstream Check](#upstream-check-2026-09-24)).
 
 A formula is **valid** when:
 
@@ -25,9 +27,9 @@ their formulas.
 
 | Formula | Upstream repo | Immutable artifact | Upstream LICENSE | Formula `license` | Status |
 | ------- | ------------- | ------------------ | ---------------- | ----------------- | ------ |
-| `hc` | `hc` | release `v1.4.1` | GPL-3.0 text, no "or later" notice | `GPL-3.0-or-later` | Installs; license claim not backed upstream (T3.4 open) |
-| `mgmt` | `media-mgmt-cli` | PyPI `0.11.0` sdist | GPL-3.0 text, `GPLv3+` classifier | `GPL-3.0-or-later` | Installs |
-| `sosig` | `social-signals` | PyPI `0.3.0` wheel | GPL-3.0 + or-later notice on `main`; **none** in `0.3.0` | `MIT` | Installs; formula license wrong; `gh` undeclared; `0.3.1` unreleased |
+| `hc` | `hc` | release `v1.4.1`; `v1.4.2` tagged, release is a **draft** | GPL-3.0 + or-later notice from `v1.4.2` | `GPL-3.0-or-later` | Installs; license claim backed once the formula moves to `v1.4.2` (T4.6) |
+| `mgmt` | `media-mgmt-cli` | PyPI `0.11.0` sdist | GPL-3.0 text, `GPLv3+` classifier; SPDX `license` on `main` | `GPL-3.0-or-later` | Installs; `0.12.0` publish failed (T3.5) |
+| `sosig` | `social-signals` | PyPI `0.3.1` sdist + wheel | GPL-3.0 + or-later notice, `License-Expression` in `0.3.1` | `MIT` | Installs `0.3.0`; formula license wrong; `gh` undeclared; T5.5 unblocked |
 | `g3` | `gists3` | release `v0.1.0` | MIT | `MIT` | Upstream ready; placeholder `sha256` in tap |
 | `loch` | `loch` | release `v0.1.0` | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Upstream ready; placeholder `sha256` in tap |
 | `mdcsv` | `mdcsv` | **none** | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Blocked: no release |
@@ -77,16 +79,15 @@ Four formulas declare `GPL-3.0-or-later`. The GPL text on its own does not grant
 file headers.
 
 - `mgmt`: backed by the `GPLv3+` classifier in `pyproject.toml`.
-- `hc`: **not backed.** `readme.md:108-110` says only "GNU General Public License
-  v3.0". The only "any later version" text in its LICENSE is the "How to Apply These
-  Terms" template at the end of the GPL, which is not a grant.
+- `hc`: backed from `v1.4.2` (`a8d76db` adds the notice to `readme.md`). `v1.4.1`,
+  which the formula installs, says only "GNU General Public License v3.0".
 - `loch`, `mdcsv`: no license yet, so this is decided in Phase 3.
 
 - **Option A: add an explicit "or later" notice upstream.** Keeps the formulas as they are.
 - **Option B: switch `hc`, `loch`, `mdcsv` to `GPL-3.0-only`.**
 
 **Recommendation: A.** The design doc already chose or-later, and it's a single
-README paragraph per repo. **Adopted in `loch` and `mdcsv`; `hc` still pending (T3.4).**
+README paragraph per repo. **Adopted in `loch`, `mdcsv`, and `hc`.**
 
 ```markdown
 ## License
@@ -122,8 +123,8 @@ later version. See [LICENSE](LICENSE).
 - [x] **T2.2** Resolve [D2](#d2-gpl-or-later-grant). If you choose Option B, change
       `license` in `Formula/hc.rb`, `Formula/loch.rb`, and `Formula/mdcsv.rb` to
       `GPL-3.0-only`.
-      *Status:* Option A chosen; no formula change needed. `hc` still has to add the
-      notice (T3.4).
+      *Status:* Option A chosen and applied upstream in all three repos; no formula
+      change needed.
 
 ### Phase 3: Upstream licenses
 
@@ -142,14 +143,18 @@ tarball is what users actually download.
       section to `README.md`.
       *Status:* done in `7c97b25` (`license = "GPL-3.0-or-later"`,
       `license-files = ["LICENSE"]`). Ships with T5.4.
-- [ ] **T3.4 `hc`:** replace `readme.md:108-110` with the D2 notice. This takes effect
-      with the next `hc` release; update the formula when that release ships.
-      *Status:* not started. `origin/main` still reads
-      "[GNU General Public License v3.0](LICENSE)."
+- [x] **T3.4 `hc`:** replace `readme.md:108-110` with the D2 notice. This takes effect
+      with the next `hc` release; update the formula when that release ships (T4.6).
+      *Status:* done in `a8d76db`, included in the `v1.4.2` tag.
 - [ ] **T3.5 `media-mgmt-cli` (optional):** replace `license = {text = "GNU GPL v3.0"}`
       with `license = "GPL-3.0-or-later"`, and replace the placeholder
       `willwright@example.com` in `authors`. Both take effect with the next release.
-      *Status:* not started. `origin/main` has neither change.
+      *Status:* both changes are in `ccbef60`, and a `v0.12.0` GitHub release exists,
+      but `pyproject.toml` at that tag still says `version = "0.11.0"`. The publish
+      workflow tried to re-upload `0.11.0` and PyPI rejected it (`400 Bad Request`), so
+      PyPI's latest `mgmt` is still `0.11.0`. To finish: bump `version` to `0.12.0`,
+      move the `v0.12.0` tag and release to that commit (or cut `v0.12.1`), and
+      re-run the publish. Then see the `awscrt` item in the [Watch List](#watch-list).
 
 ### Phase 4: Releases and checksums
 
@@ -183,6 +188,12 @@ gh release create v0.1.0 --generate-notes
 - [ ] **T4.5 Update the docs.** Change the three rows in the `readme.md` status table
       to "Ready", and tick off the "Blocked on the tool's own repo" items in the
       [design-doc.md setup checklist](design-doc.md#setup-checklist).
+- [ ] **T4.6 Move `hc` to `v1.4.2`.** Publish the draft `v1.4.2` release upstream
+      (its release-please PR checks are waiting on `action_required` approval), then
+      update `url` and `sha256` in `Formula/hc.rb`. Until the release is published,
+      `brew livecheck` keeps reporting `v1.4.1`.
+      Tarball checksum of the `v1.4.2` tag:
+      `0de3c8babbb56f98adfe7d4648966eda0db34808ac5b145133c0250300345ab7`.
 
 ### Phase 5: `social-signals` restructure and republish
 
@@ -204,7 +215,7 @@ the sdist can't be built.
       creates `$XDG_DATA_HOME/sosig`. Move the call into the CLI entry point.
       *Status:* verified. Neither `import sosig` nor `sosig --help` creates anything
       under `$XDG_DATA_HOME`.
-- [ ] **T5.4 Release `0.3.1`** to PyPI and GitHub. Before publishing, check the sdist:
+- [x] **T5.4 Release `0.3.1`** to PyPI and GitHub. Before publishing, check the sdist:
 
   ```bash
   python -m build --sdist
@@ -212,15 +223,17 @@ the sdist can't be built.
   python -m venv /tmp/sosig-check && /tmp/sosig-check/bin/pip install dist/sosig-0.3.1.tar.gz
   ```
 
-  *Status:* not released (PyPI latest is `0.3.0`; no `v0.3.1` tag). The pre-publish
-  check passes against `7c97b25`. The sdist builds, contains no `..` paths, installs,
-  and reports `License-Expression: GPL-3.0-or-later`. Before tagging:
+  *Status:* `0.3.1` is on PyPI (sdist and wheel), built from `c9a2d66`, which also
+  commits the workflow input fixes. The published sdist contains no `..` paths and
+  declares `License-Expression: GPL-3.0-or-later`. Two loose ends remain:
 
-  - commit the local, uncommitted edits to `.github/workflows/publish.yml` and
-    `pre-publish.yml` (`packages_dir` → `packages-dir`, `repository_url` →
-    `repository-url`), plus the `README.md` and `scripts/analyze-repo-file.sh` edits
-  - fix the typo in the `authors` email in `pyproject.toml`
-    (`will.wright.engineeering@gmail.com` has three e's)
+  - the GitHub release is tagged **`v0.4.0`**, not `v0.3.1`, while the package
+    version is `0.3.1`. The formula's livecheck reads PyPI, so it isn't affected,
+    but the tag should match the version: rename it to `v0.3.1`, or bump to `0.4.0`
+    and publish that.
+  - the `authors` email typo (`will.wright.engineeering@gmail.com`, three e's) is
+    still in `pyproject.toml` and in the published metadata. Fix it in the next
+    release.
 
 - [ ] **T5.5 Switch `Formula/sosig.rb` to the sdist pattern:**
 
@@ -231,21 +244,29 @@ the sdist can't be built.
     (`--package-name` is no longer needed)
   - keep `depends_on "rust" => :build`, since `pydantic-core` still builds from source
 
+  Do T2.1 in the same change. The `0.3.1` sdist:
+
+  ```text
+  url    https://files.pythonhosted.org/packages/4f/b7/bf2c3edb703b96de1d908744678a79ee226707bb3055dc7ffd7eee18f072/sosig-0.3.1.tar.gz
+  sha256 d39a1972cecb59b3cdd6c81ce750318dfb588ec5f14f6d78f9142ba482e00b7d
+  ```
+
   Then update the `sosig` section of [design-doc.md](design-doc.md) to match.
 
 ## Upstream Check (2026-09-24)
 
-Each repo's `origin/main`, tags, and GitHub releases were inspected, and every
-published artifact was downloaded and built outside Homebrew:
+Each repo's `origin/main`, tags, GitHub releases, publish workflow runs, and PyPI
+metadata were inspected. Published tarballs were re-downloaded and checksummed, and
+builds were run outside Homebrew in an earlier pass the same day:
 
 | Repo | Result |
 | ---- | ------ |
-| `gists3` | `v0.1.0` release contains MIT `LICENSE`. `go build ./cmd/g3` succeeds; bare `g3` prints `usage: g3` and exits 2, matching the formula test. |
-| `loch` | `v0.1.0` release contains GPL-3.0 `LICENSE`, `README.md` with the D2 notice, and `license = "GPL-3.0-or-later"` in `Cargo.toml`. `cargo build --release` succeeds; `loch --version` prints `loch 0.1.0`, and `--help` exits 0. |
-| `mdcsv` | `main` (`5b1fada`) has GPL-3.0 `LICENSE` and the D2 notice. `go build .` succeeds and `--help` prints `usage: mdcsv`. No tag or release. |
-| `social-signals` | `main` (`7c97b25`) completes T3.3 and T5.1–T5.3; the sdist check passes. `0.3.1` not released; uncommitted workflow edits locally. |
-| `hc` | No change since `v1.4.1`. README still lacks the or-later grant. |
-| `media-mgmt-cli` | No change to license metadata or `authors`. Only Dependabot merges since `v0.11.0`. |
+| `gists3` | `v0.1.0` release contains MIT `LICENSE`. `go build ./cmd/g3` succeeds; bare `g3` prints `usage: g3` and exits 2, matching the formula test. Tarball checksum unchanged. |
+| `loch` | `v0.1.0` release contains GPL-3.0 `LICENSE`, `README.md` with the D2 notice, and `license = "GPL-3.0-or-later"` in `Cargo.toml`. `cargo build --release` succeeds; `loch --version` prints `loch 0.1.0`, and `--help` exits 0. Tarball checksum unchanged. |
+| `mdcsv` | `main` (`5b1fada`) has GPL-3.0 `LICENSE` and the D2 notice. `go build .` succeeds and `--help` prints `usage: mdcsv`. Still no tag or release. |
+| `social-signals` | PyPI `0.3.1` sdist and wheel published from `c9a2d66` via manual dispatch; sdist verified (no `..` paths, `License-Expression: GPL-3.0-or-later`). GitHub release is tagged `v0.4.0` against the same commit. Author email typo still present. |
+| `hc` | `a8d76db` adds the D2 notice; release-please merged `1.4.2` (`9f8c5d8`) and pushed the `v1.4.2` tag, but the release is still a draft. `v1.4.1` remains "Latest". |
+| `media-mgmt-cli` | `ccbef60` sets `license = "GPL-3.0-or-later"`, `license-files`, and the real author email. `v0.12.0` release created, but `pyproject.toml` still says `0.11.0`, so the publish run failed with a PyPI `400`. |
 
 These builds do not replace `brew audit --strict` or `brew install`; those still run
 in CI once T1.1 lands.
@@ -273,10 +294,10 @@ Everything is done when:
 
 These don't block anything now, but will need action later.
 
-- **`mgmt` and `awscrt`.** `media-mgmt-cli`'s `pyproject.toml` now lists
-  `botocore[crt]`, but the published `0.11.0` does not. The next release will pull in
-  the compiled `awscrt` package, and `Formula/mgmt.rb` will then need
-  `depends_on "cmake" => :build`.
+- **`mgmt` and `awscrt`.** The `v0.12.0` tag's `pyproject.toml` lists
+  `botocore[crt]`, but the published `0.11.0` does not. Once T3.5's `0.12.0` reaches
+  PyPI, it will pull in the compiled `awscrt` package. Bumping `Formula/mgmt.rb` will
+  then need `depends_on "cmake" => :build` and regenerated resources.
 - **Design doc drift.** [design-doc.md](design-doc.md) is out of date in three places:
   - `loch`'s `rust-version` is now `1.87`, not `1.85`. Homebrew's Rust still covers it.
   - The CI section says the placeholder formulas fail at the download step; currently
