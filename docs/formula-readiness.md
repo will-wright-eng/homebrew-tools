@@ -8,8 +8,9 @@ checksums in this tap. `mdcsv` has its LICENSE but no release yet. `sosig` `0.3.
 now on PyPI with a clean sdist and a GPL license, so T5.5 is unblocked. `hc` added the
 or-later notice and tagged `v1.4.2`, but the GitHub release is still a draft.
 `media-mgmt-cli` fixed its license metadata and created a `v0.12.0` release, but the
-PyPI publish failed because `pyproject.toml` still says `0.11.0`. Nothing in this tap
-has changed yet, and CI has never run successfully. This document lists, in order,
+PyPI publish failed because `pyproject.toml` still says `0.11.0`. In this tap, Phase 1
+is applied (CI action ref, `sosig`'s `gh` dependency, README link), but CI has not yet
+run successfully. This document lists, in order,
 the tasks that make all six formulas valid. Upstream state was last checked on
 2026-09-24 (see [Upstream Check](#upstream-check-2026-09-24)).
 
@@ -29,14 +30,15 @@ their formulas.
 | ------- | ------------- | ------------------ | ---------------- | ----------------- | ------ |
 | `hc` | `hc` | release `v1.4.1`; `v1.4.2` tagged, release is a **draft** | GPL-3.0 + or-later notice from `v1.4.2` | `GPL-3.0-or-later` | Installs; license claim backed once the formula moves to `v1.4.2` (T4.6) |
 | `mgmt` | `media-mgmt-cli` | PyPI `0.11.0` sdist | GPL-3.0 text, `GPLv3+` classifier; SPDX `license` on `main` | `GPL-3.0-or-later` | Installs; `0.12.0` publish failed (T3.5) |
-| `sosig` | `social-signals` | PyPI `0.3.1` sdist + wheel | GPL-3.0 + or-later notice, `License-Expression` in `0.3.1` | `MIT` | Installs `0.3.0`; formula license wrong; `gh` undeclared; T5.5 unblocked |
+| `sosig` | `social-signals` | PyPI `0.3.1` sdist + wheel | GPL-3.0 + or-later notice, `License-Expression` in `0.3.1` | `MIT` | Installs `0.3.0`; formula license wrong; T5.5 unblocked |
 | `g3` | `gists3` | release `v0.1.0` | MIT | `MIT` | Upstream ready; placeholder `sha256` in tap |
 | `loch` | `loch` | release `v0.1.0` | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Upstream ready; placeholder `sha256` in tap |
 | `mdcsv` | `mdcsv` | **none** | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Blocked: no release |
 
-**CI is broken for all six.** Every run of `.github/workflows/audit.yml` fails at
-"Set up job" with `Unable to resolve action homebrew/actions@master`. The default
-branch of `Homebrew/actions` is now `main`, so no formula has passed CI yet.
+**CI has not passed for any formula.** Every run of `.github/workflows/audit.yml` so far
+failed at "Set up job" with `Unable to resolve action homebrew/actions@master`,
+because the default branch of `Homebrew/actions` is now `main`. T1.1 switches the
+workflow to `@main`; the first run after push will confirm it.
 
 ## Critical Path
 
@@ -102,17 +104,21 @@ later version. See [LICENSE](LICENSE).
 
 ### Phase 1: Tap fixes (this repo)
 
-- [ ] **T1.1 Fix CI.** In `.github/workflows/audit.yml:27`, change
+- [ ] **T1.1 Fix CI.** In `.github/workflows/audit.yml:28`, change
       `Homebrew/actions/setup-homebrew@master` to `@main`.
       *Done when* all six matrix jobs get past setup, `hc`, `mgmt`, and `sosig` pass,
       and `g3`, `loch`, and `mdcsv` fail only on their placeholder checksums.
-- [ ] **T1.2 Declare `sosig`'s runtime dependency on `gh`.** `sosig` runs
+      *Status:* workflow changed to `@main`; waiting on the first CI run after push.
+- [x] **T1.2 Declare `sosig`'s runtime dependency on `gh`.** `sosig` runs
       `gh repo view --json stargazerCount` and `gh repo view --json owner`
-      (`sosig/src/sosig/utils/gh_utils.py`). Add `depends_on "gh"` to
+      (`src/sosig/utils/gh_utils.py`). Add `depends_on "gh"` to
       `Formula/sosig.rb`. `brew audit --strict` checks the order of `depends_on`
       lines, so run it after the edit.
-- [ ] **T1.3 Fix the broken README link.** `readme.md:4` links to `design-doc.md`, but
+      *Status:* added between the `rust` build dependency and `python@3.14`;
+      `brew style Formula/sosig.rb` reports no offenses. The full audit runs in CI.
+- [x] **T1.3 Fix the broken README link.** `readme.md:4` links to `design-doc.md`, but
       the file lives at `docs/design-doc.md`.
+      *Status:* link now points at `docs/design-doc.md`.
 
 ### Phase 2: License decisions
 

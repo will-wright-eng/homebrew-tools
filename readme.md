@@ -1,7 +1,7 @@
 # homebrew-tools
 
 A personal Homebrew tap distributing six developer tools that each ship with a
-different, language-specific install path. See [design-doc.md](design-doc.md) for
+different, language-specific install path. See [design-doc.md](docs/design-doc.md) for
 the formula design and the reasoning behind it.
 
 ## Install

@@ -18,6 +18,7 @@ class Sosig < Formula
 
   # pip runs with --no-binary=:all:, so pydantic-core is built from Rust source.
   depends_on "rust" => :build
+  depends_on "gh"
   depends_on "python@3.14"
 
   resource "annotated-doc" do
