@@ -107,7 +107,11 @@ later version. See [LICENSE](LICENSE).
 - [ ] **T1.1 Fix CI.** In `.github/workflows/audit.yml:28`, change
       `Homebrew/actions/setup-homebrew@master` to `@main`.
       *Done when* all six matrix jobs get past setup and pass.
-      *Status:* workflow changed to `@main`; waiting on the first CI run after push.
+      *Status:* `@main` resolves, and setup now passes. Run `36187063639` then failed in
+      every job at "Tap this working copy" with `Tap will-wright-eng/tools remote
+      mismatch`: `setup-homebrew` already symlinks a `homebrew-*` checkout into
+      `Library/Taps`, so the manual `brew tap <path>` step clashed with that tap. The step
+      is removed; waiting on the next run.
 - [x] **T1.2 Declare `sosig`'s runtime dependency on `gh`.** `sosig` runs
       `gh repo view --json stargazerCount` and `gh repo view --json owner`
       (`src/sosig/utils/gh_utils.py`). Add `depends_on "gh"` to
@@ -315,6 +319,7 @@ These don't block anything now, but will need action later.
   - The CI section says the placeholder formulas fail at the download step; currently
     every job fails at setup (fixed by T1.1).
   - The repository structure tree shows `design-doc.md` at the root; it lives in `docs/`.
+  - The CI workflow snippet still has the `brew tap ... "$(pwd)"` step removed in T1.1.
 
 ## References
 

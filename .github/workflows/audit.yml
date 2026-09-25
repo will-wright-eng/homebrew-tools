@@ -27,9 +27,6 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
 
-      - name: Tap this working copy
-        run: brew tap will-wright-eng/tools "$(pwd)"
-
       - name: Audit
         run: brew audit --strict will-wright-eng/tools/${{ matrix.formula }}
 
