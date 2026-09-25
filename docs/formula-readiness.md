@@ -2,10 +2,9 @@
 
 ## Summary
 
-Three of the six formulas (`hc`, `mgmt`, `sosig`) install today. Upstream, `gists3`
-and `loch` are released with their LICENSEs, so `g3` and `loch` only need real
-checksums in this tap. `mdcsv` is released as `v0.1.0` and its formula checksum is
-filled in. `sosig` `0.3.1` is
+Three of the six formulas (`hc`, `mgmt`, `sosig`) install today. `gists3`, `loch`,
+and `mdcsv` are released as `v0.1.0` with their LICENSEs, and `g3`, `loch`, and
+`mdcsv` now pin those tarballs' checksums; they need a passing CI run. `sosig` `0.3.1` is
 now on PyPI with a clean sdist and a GPL license, so T5.5 is unblocked. `hc` added the
 or-later notice and tagged `v1.4.2`, but the GitHub release is still a draft.
 `media-mgmt-cli` fixed its license metadata and created a `v0.12.0` release, but the
@@ -32,8 +31,8 @@ their formulas.
 | `hc` | `hc` | release `v1.4.1`; `v1.4.2` tagged, release is a **draft** | GPL-3.0 + or-later notice from `v1.4.2` | `GPL-3.0-or-later` | Installs; license claim backed once the formula moves to `v1.4.2` (T4.6) |
 | `mgmt` | `media-mgmt-cli` | PyPI `0.11.0` sdist | GPL-3.0 text, `GPLv3+` classifier; SPDX `license` on `main` | `GPL-3.0-or-later` | Installs; `0.12.0` publish failed (T3.5) |
 | `sosig` | `social-signals` | PyPI `0.3.1` sdist + wheel | GPL-3.0 + or-later notice, `License-Expression` in `0.3.1` | `MIT` | Installs `0.3.0`; formula license wrong; T5.5 unblocked |
-| `g3` | `gists3` | release `v0.1.0` | MIT | `MIT` | Upstream ready; placeholder `sha256` in tap |
-| `loch` | `loch` | release `v0.1.0` | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Upstream ready; placeholder `sha256` in tap |
+| `g3` | `gists3` | release `v0.1.0` | MIT | `MIT` | Upstream ready; `sha256` filled in, awaiting CI |
+| `loch` | `loch` | release `v0.1.0` | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Upstream ready; `sha256` filled in, awaiting CI |
 | `mdcsv` | `mdcsv` | release `v0.1.0` | GPL-3.0 + or-later notice | `GPL-3.0-or-later` | Upstream ready; `sha256` filled in, awaiting CI |
 
 **CI has not passed for any formula.** Every run of `.github/workflows/audit.yml` so far
@@ -107,8 +106,7 @@ later version. See [LICENSE](LICENSE).
 
 - [ ] **T1.1 Fix CI.** In `.github/workflows/audit.yml:28`, change
       `Homebrew/actions/setup-homebrew@master` to `@main`.
-      *Done when* all six matrix jobs get past setup, `hc`, `mgmt`, and `sosig` pass,
-      and `g3` and `loch` fail only on their placeholder checksums.
+      *Done when* all six matrix jobs get past setup and pass.
       *Status:* workflow changed to `@main`; waiting on the first CI run after push.
 - [x] **T1.2 Declare `sosig`'s runtime dependency on `gh`.** `sosig` runs
       `gh repo view --json stargazerCount` and `gh repo view --json owner`
@@ -180,7 +178,7 @@ gh release create v0.1.0 --generate-notes
       `5b1fada`, which matches `origin/main`. The tarball contains `LICENSE`
       and the D2 notice, builds with `go build .`, and `--help` exits 0 and prints
       `usage: mdcsv`.
-- [ ] **T4.4 Fill in the checksums.** Replace each placeholder `sha256` in `Formula/g3.rb`,
+- [x] **T4.4 Fill in the checksums.** Replace each placeholder `sha256` in `Formula/g3.rb`,
       `Formula/loch.rb`, and `Formula/mdcsv.rb`:
 
   ```bash
@@ -193,7 +191,11 @@ gh release create v0.1.0 --generate-notes
   | ------- | -------- |
   | `g3` | `9ad232157ebcdce94ea850058161bcc46bf0650eb7d1b27f136b4e9eee649929` |
   | `loch` | `f4e334bced7ec2593f1e551825604cdcc0fa96102071cc0e0bcba6853c149cab` |
-  | `mdcsv` | `356fef732a661ae61b02bc33af44bfa26d7a496c28e0a4c4287134f779323953` (in `Formula/mdcsv.rb`) |
+  | `mdcsv` | `356fef732a661ae61b02bc33af44bfa26d7a496c28e0a4c4287134f779323953` |
+
+  *Status:* all three are in their formulas. On 2026-09-25 the tarballs were
+  re-downloaded: each checksum matches, each release is published as Latest, and
+  each tarball carries the LICENSE the formula's `license` claims.
 
 - [ ] **T4.5 Update the docs.** Change the three rows in the `readme.md` status table
       to "Ready", and tick off the "Blocked on the tool's own repo" items in the

@@ -2,7 +2,7 @@ class G3 < Formula
   desc "Object storage CLI over GitHub Gists, speaking aws-cli vocabulary"
   homepage "https://github.com/will-wright-eng/gists3"
   url "https://github.com/will-wright-eng/gists3/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "9ad232157ebcdce94ea850058161bcc46bf0650eb7d1b27f136b4e9eee649929"
   license "MIT"
   head "https://github.com/will-wright-eng/gists3.git", branch: "main"
 
