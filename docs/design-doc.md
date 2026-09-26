@@ -11,7 +11,7 @@ Scope is deliberately a **tap**, not submissions to `homebrew-core`. Core requir
 notability thresholds (maintained, stable, widely used) these tools do not meet, and
 core rejects HEAD-only and unversioned formulas outright. A tap has no such gate.
 
-The `readme.md` note about the Gatekeeper deprecation
+The Gatekeeper deprecation mentioned in `readme.md`
 (`does not pass the macOS Gatekeeper check`) applies to **casks** shipping signed
 `.app`/binary artifacts, not to formulas. Every formula here builds from source on the
 user's machine or installs a Python wheel into a virtualenv, so Gatekeeper never sees a
@@ -19,10 +19,9 @@ downloaded executable. `Homebrew/deprecate_disable.rb` exposes `:fails_gatekeepe
 only as a cask deprecation reason, and the audit that enforces it lives in
 `Library/Homebrew/cask/audit.rb`. This tap is unaffected.
 
-All six formulas are committed. Three — `hc`, `mgmt`, and `sosig` — are installable
-today. The other three are written and verified but carry placeholder checksums until
-their repos are tagged; see
-[Prerequisites](#prerequisites-blocking-work-outside-this-repo).
+All six formulas are committed, pinned to immutable upstream artifacts, and pass
+audit, install, and test in CI. `hc` and `sosig` are one release behind upstream;
+[formula-readiness.md](formula-readiness.md) tracks that and all other open work.
 
 ---
 
@@ -32,16 +31,15 @@ Facts below were read from each repository and from PyPI, not assumed.
 
 | Tool | Repo | Language | Binary | License | Release state |
 |------|------|----------|--------|---------|---------------|
-| `hc` | `will-wright-eng/hc` | Go 1.26.1 | `hc` | GPL-3.0-or-later | Tagged: `v1.4.1`, goreleaser assets |
-| `loch` | `will-wright-eng/loch` | Rust 1.85 | `loch` | **none** | **No tags, no releases** |
-| `g3` | `will-wright-eng/gists3` | Go 1.22 | `g3` | MIT | **No tags, no releases** |
-| `sosig` | `will-wright-eng/social-signals` | Python ≥3.10 | `sosig` | **none** | Tagged `v0.3.0`; on PyPI as `sosig` |
-| `mgmt` | `will-wright-eng/media-mgmt-cli` | Python ≥3.9 | `mgmt` | GPL-3.0-or-later | Tagged `v0.11.0`; on PyPI as `mgmt` |
-| `mdcsv` | `will-wright-eng/mdcsv` | Go 1.23.4 | `mdcsv` | **none** | **No tags, no releases** |
+| `hc` | `will-wright-eng/hc` | Go 1.26.1 | `hc` | GPL-3.0-or-later | Tagged `v1.4.2`, goreleaser assets; formula on `v1.4.1` |
+| `loch` | `will-wright-eng/loch` | Rust 1.87 | `loch` | GPL-3.0-or-later | Tagged `v0.1.0` |
+| `g3` | `will-wright-eng/gists3` | Go 1.22 | `g3` | MIT | Tagged `v0.1.0` |
+| `sosig` | `will-wright-eng/social-signals` | Python ≥3.10 | `sosig` | GPL-3.0-or-later from `0.3.1` | On PyPI as `sosig` `0.3.1`; formula on `0.3.0` wheel |
+| `mgmt` | `will-wright-eng/media-mgmt-cli` | Python ≥3.9 | `mgmt` | GPL-3.0-or-later | On PyPI as `mgmt` `0.11.0`; GitHub `v0.12.0` never reached PyPI |
+| `mdcsv` | `will-wright-eng/mdcsv` | Go 1.23.4 | `mdcsv` | GPL-3.0-or-later | Tagged `v0.1.0` |
 
-Three tools are blocked on tags in their own repos, and `sosig` ships with two
-non-blocking upstream fixes outstanding; see
-[Prerequisites](#prerequisites-blocking-work-outside-this-repo).
+Every tool now has a tag or published package and a LICENSE file; see
+[Upstream Prerequisites](#upstream-prerequisites) for how they got there.
 
 ### Name collisions
 
@@ -70,16 +68,17 @@ homebrew-tools/
 │   ├── mgmt.rb
 │   └── sosig.rb
 ├── .github/
+│   ├── dependabot.yml
+│   ├── scripts/
+│   │   └── bump_formula.py
 │   └── workflows/
-│       └── audit.yml
-├── design-doc.md
+│       ├── audit.yml
+│       └── livecheck.yml
+├── docs/
+│   ├── design-doc.md
+│   └── formula-readiness.md
 └── readme.md
 ```
-
-`g3.rb`, `loch.rb`, and `mdcsv.rb` are committed with a placeholder `sha256`. Their build
-logic was verified against pinned commits of each repo's `main` (see
-[Interim option](#interim-option-pinned-commit-urls)), so tagging reduces to swapping the
-`url` and filling in the real checksum.
 
 Homebrew discovers formulas from `.rb` files under `Formula/`. The class name is the
 CamelCased filename (`g3.rb` → `class G3`), and the default install target is
@@ -137,7 +136,7 @@ class Hc < Formula
 end
 ```
 
-The `sha256` above is the **real** checksum of the `v1.4.1` source tarball, verified with
+The `sha256` above is the checksum of the `v1.4.1` source tarball, verified with
 `curl -sL <url> | shasum -a 256`. Note this is the GitHub-generated source archive, not
 one of the goreleaser release assets — those have their own, different checksums
 (published in `checksums.txt`) and are only relevant if the tap ever switches to
@@ -153,8 +152,8 @@ class Mdcsv < Formula
   desc "Convert between markdown tables and CSV"
   homepage "https://github.com/will-wright-eng/mdcsv"
   url "https://github.com/will-wright-eng/mdcsv/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "<sha256 of the v0.1.0 tarball, once tagged>"
-  license "GPL-3.0-or-later" # no LICENSE file upstream yet; see Prerequisites
+  sha256 "356fef732a661ae61b02bc33af44bfa26d7a496c28e0a4c4287134f779323953"
+  license "GPL-3.0-or-later"
   head "https://github.com/will-wright-eng/mdcsv.git", branch: "main"
 
   livecheck do
@@ -190,7 +189,7 @@ class G3 < Formula
   desc "Object storage CLI over GitHub Gists, speaking aws-cli vocabulary"
   homepage "https://github.com/will-wright-eng/gists3"
   url "https://github.com/will-wright-eng/gists3/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "<sha256 of the v0.1.0 tarball, once tagged>"
+  sha256 "9ad232157ebcdce94ea850058161bcc46bf0650eb7d1b27f136b4e9eee649929"
   license "MIT"
   head "https://github.com/will-wright-eng/gists3.git", branch: "main"
 
@@ -227,7 +226,7 @@ not, so the flag does not apply here. The `--locked` flag requires a committed
 
 Two facts from `Cargo.toml` shape this formula:
 
-- `rust-version = "1.85"`; Homebrew's `rust` is 1.98.1, so the toolchain is satisfied.
+- `rust-version = "1.87"`; Homebrew's `rust` is 1.98.1, so the toolchain is satisfied.
 - A comment in the manifest records that the crates.io name `loch` is squatted by a
   dormant 2019 crate. That only matters for `cargo install loch` from the registry;
   building from the GitHub tarball with `--path=.` bypasses crates.io entirely, and the
@@ -240,8 +239,8 @@ class Loch < Formula
   desc "Per-commit LOC history via gix and tokei, without a working tree"
   homepage "https://github.com/will-wright-eng/loch"
   url "https://github.com/will-wright-eng/loch/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "<sha256 of the v0.1.0 tarball, once tagged>"
-  license "GPL-3.0-or-later" # no LICENSE file upstream yet; see Prerequisites
+  sha256 "f4e334bced7ec2593f1e551825604cdcc0fa96102071cc0e0bcba6853c149cab"
+  license "GPL-3.0-or-later"
   head "https://github.com/will-wright-eng/loch.git", branch: "main"
 
   livecheck do
@@ -324,13 +323,12 @@ class Mgmt < Formula
   depends_on "python@3.14"
 
   # Generated by `brew update-python-resources Formula/mgmt.rb`.
-  # Transitive deps of boto3, rich, and typer.
-  resource "boto3" do
-    url "https://files.pythonhosted.org/..."
-    sha256 "..."
+  resource "annotated-doc" do
+    url "https://files.pythonhosted.org/packages/5a/8e/.../annotated_doc-0.0.5.tar.gz"
+    sha256 "c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb"
   end
 
-  # ... remaining resources ...
+  # ... 13 more resources: transitive deps of boto3, rich, and typer ...
 
   def install
     virtualenv_install_with_resources
@@ -344,9 +342,12 @@ end
 
 The `url` and `sha256` are the real published sdist values, read from the PyPI JSON API.
 
-#### `sosig` — the sdist is broken, so install the wheel
+#### `sosig` — the `0.3.0` sdist is broken, so install the wheel
 
-`sosig`'s published sdist **cannot be built**, and this was confirmed three ways.
+The formula installs `0.3.0`, whose published sdist **cannot be built**. `0.3.1` fixes
+this upstream; switching the formula to the ordinary sdist pattern is tracked as T5.5
+in [formula-readiness.md](formula-readiness.md). Until then, the wheel workaround below
+is what ships.
 
 The package lives in the `sosig/` subdirectory of the `social-signals` repo, and its
 `pyproject.toml` declares `readme = "../README.md"` — a path outside the package root.
@@ -389,9 +390,10 @@ class Sosig < Formula
   # outside the package root, so hatchling rejects it. Install the wheel instead.
   url "https://files.pythonhosted.org/packages/0c/91/5a0be09985bb88704534f2b733c0b03c99586770a292d8d8e22501ef411d/sosig-0.3.0-py3-none-any.whl", using: :nounzip
   sha256 "7097eb473b1d620a08f0bdd38ac34686bcb1756c63d186b206f57e56eb4eb0f5"
+  license "MIT"
 
-  # `strategy :pypi` derives the package name from the filename and reads
-  # "sosig-0.3.0-py3-none" off a wheel URL, so the project page is named directly.
+  # `strategy :pypi` reads "sosig-0.3.0-py3-none" as the package name off a wheel
+  # URL, so the project page is named directly.
   livecheck do
     url "https://pypi.org/pypi/sosig/json"
     regex(/"version":\s*"([^"]+)"/i)
@@ -399,6 +401,7 @@ class Sosig < Formula
 
   # pip runs with --no-binary=:all:, so pydantic-core is built from Rust source.
   depends_on "rust" => :build
+  depends_on "gh"
   depends_on "python@3.14"
 
   # Generated by:
@@ -430,6 +433,12 @@ end
 rather than the wheel. The three-line expansion above is that helper's body with the
 final target swapped.
 
+`sosig` shells out to the GitHub CLI at runtime, hence `depends_on "gh"`.
+
+The `license "MIT"` line is **wrong**: `social-signals` is `GPL-3.0-or-later` from
+`0.3.1`, and the `0.3.0` wheel declares no license at all. It is corrected in the same
+change as the sdist switch (T2.1 in [formula-readiness.md](formula-readiness.md)).
+
 **Resource generation needs an explicit package name.** `brew update-python-resources`
 parses the main `url` with a regex that only accepts `.tar.gz`/`.zip`
 (`utils/pypi.rb:171`) and fails on a wheel URL with
@@ -442,56 +451,55 @@ project URL outright.
 --strict` passed, `brew install --build-from-source` completed in 1m23s (22.5MB, 1,092
 files), and `brew test` passed.
 
-The upstream fix is to set `readme` to a path inside `sosig/` (or drop it and rely on
-`project.readme` defaults) and republish; the formula could then use the normal sdist
-pattern and the ordinary `strategy :pypi` livecheck. That is a change to the
-`social-signals` repo, not to this one.
+The upstream fix has landed: `social-signals` moved the package to the repo root, and the
+`0.3.1` sdist contains no `..` paths and declares `License-Expression: GPL-3.0-or-later`.
+Once the formula moves to it, it uses the normal sdist pattern and the ordinary
+`strategy :pypi` livecheck, and the wheel workaround above goes away.
 
-`sosig` also leaves a side effect worth knowing: it creates its data directory on
+`0.3.0` also leaves a side effect worth knowing: it creates its data directory on
 **import**, not on first command, because its `__init__.py` calls `get_db()` at module
 scope. The location is XDG-aware — `$XDG_DATA_HOME/sosig` when that variable is set,
-otherwise `~/.local/share/sosig/` (`src/sosig/core/config.py:18-27`). `brew test`
-triggers this. It is harmless but not idiomatic. `mgmt` has no equivalent behaviour; its
-`__init__.py` is a bare re-export.
+otherwise `~/.local/share/sosig/`. `brew test` triggers this. `0.3.1` no longer creates
+the database on import. `mgmt` has no equivalent behaviour; its `__init__.py` is a bare
+re-export.
 
 ---
 
-## Prerequisites (blocking work outside this repo)
+## Upstream Prerequisites
 
-Three of the six tools cannot get a correct formula until their own repos change. A
-formula's `url` must point at an immutable artifact — a tag or a commit SHA — because a
-branch tarball's `sha256` changes on every push, breaking every install.
+A formula's `url` must point at an immutable artifact — a tag, a published package, or a
+commit SHA — because a branch tarball's `sha256` changes on every push, breaking every
+install. When the tap was first written, three tools had no tags and three had no
+LICENSE file. All of these are now resolved upstream:
 
-| Tool | Blocker | Fix (in that repo) |
-|------|---------|--------------------|
-| `loch` | No tags/releases; **no LICENSE** | `git tag v0.1.0 && git push --tags`; add a LICENSE file |
-| `g3` | No tags/releases | `git tag v0.1.0 && git push --tags` (LICENSE is MIT, present) |
-| `mdcsv` | No tags/releases; **no LICENSE** | `git tag v0.1.0 && git push --tags`; add a LICENSE file |
+| Tool | Original blocker | Resolution |
+|------|------------------|------------|
+| `loch` | No tags/releases; no LICENSE | GPL-3.0 LICENSE with "or later" notice; tagged `v0.1.0` |
+| `g3` | No tags/releases | Tagged `v0.1.0` (MIT LICENSE was already present) |
+| `mdcsv` | No tags/releases; no LICENSE | GPL-3.0 LICENSE with "or later" notice; tagged `v0.1.0` |
+| `sosig` | No LICENSE; unbuildable sdist (non-blocking) | GPL-3.0 LICENSE and PEP 639 `license`; fixed sdist published as `0.3.1` |
 
-`sosig` ships now but carries two upstream fixes that are not blocking:
-`social-signals` has **no LICENSE file** (the GitHub API reports none, and PyPI carries
-no license metadata), and its sdist is unbuildable. Both should be fixed and the package
-republished; the second is what would let the formula drop the wheel machinery.
+Remaining upstream housekeeping is tracked in [formula-readiness.md](formula-readiness.md).
 
-### On the missing licenses
+### Licenses
 
 `brew audit --strict` does **not** fail a tap formula for a missing `license` stanza —
-only for a non-SPDX or deprecated identifier. But omitting it is wrong for a different
-reason: with no LICENSE file, `loch`, `mdcsv`, and `social-signals` are "all rights
-reserved" by default, and distributing them via a public tap invites users to install
-code they have no license to use. Add a LICENSE before tagging.
+only for a non-SPDX or deprecated identifier. But a tool with no LICENSE file is "all
+rights reserved" by default, and distributing it via a public tap invites users to
+install code they have no license to use. A LICENSE comes before the tag.
 
-`loch` and `mdcsv` take **`GPL-3.0-or-later`**, matching `hc` and `mgmt`. GPL is the
-default for tools authored here; `gists3`'s MIT is the exception, not the pattern.
+GPL is the default for tools authored here; `gists3`'s MIT is the exception, not the
+pattern. `hc`, `loch`, `mdcsv`, `mgmt`, and `sosig` are all `GPL-3.0-or-later`.
 
 For the GPL tools, the correct SPDX identifier is `GPL-3.0-or-later`, not
-`GPL-3.0-only`. The LICENSE files include the standard "either version 3 of the
-License, or (at your option) any later version" grant. `GPL-3.0` (no suffix) is
+`GPL-3.0-only`. The GPL text alone does not grant "or later", so each upstream README
+carries an explicit "version 3 or (at your option) any later version" notice, or the
+package metadata declares `GPL-3.0-or-later` directly. `GPL-3.0` (no suffix) is
 deprecated in the SPDX list and should not be used — `brew audit --strict` rejects it.
 
 ### Interim option: pinned-commit URLs
 
-If tagging is deferred, a commit SHA is also immutable and works today:
+If a tool ever needs to ship before its repo is tagged, a commit SHA is also immutable:
 
 ```ruby
 url "https://github.com/will-wright-eng/mdcsv/archive/d4b5fc5a9994f2e6b0e95ff5093fe08fd381d1f5.tar.gz"
@@ -499,16 +507,15 @@ version "0.1.0"   # required: Homebrew cannot infer a version from a SHA URL
 sha256 "e389ce02d79cccb06e695beafa5851195a5d250797468f8ff8914c37675dbd8d"
 ```
 
-**This was verified end to end** for all three blocked formulas. With a pinned-commit
-`url`/`version`/`sha256` substituted into each, `brew audit --strict` passed, and
+This was verified end to end for `mdcsv`, `g3`, and `loch` before they were tagged:
+with a pinned-commit `url`/`version`/`sha256`, `brew audit --strict` passed, and
 `brew install --build-from-source` plus `brew test` succeeded: `mdcsv` in 2s, `g3` in
-3s, `loch` in 30s. Only the `url` and `sha256` lines differ from the committed
-formulas, so tagging cannot break the build logic.
+3s, `loch` in 30s.
 
 Tagging is still preferred — a `version` that is unrelated to any upstream marker is a
-maintenance trap — and it is the route taken here. The three blocked tools wait for tags
-rather than shipping on pinned commits. Treat pinned commits as a bridge available if a
-tool needs to ship before its repo is ready, not as a destination.
+maintenance trap — and it is the route taken here: all three waited for `v0.1.0` tags
+rather than shipping on pinned commits. Treat pinned commits as a bridge, not a
+destination.
 
 ### `head` blocks
 
@@ -555,7 +562,8 @@ length). The rewrite above is deliberate.
 | `sosig` | PyPI wheel | Bump `url`/`sha256`, re-run with `--package-name sosig` |
 
 No formula tracks a moving branch on its stable path. Every update is a deliberate,
-reviewable commit.
+reviewable commit — including the ones `livecheck.yml` proposes, which arrive as PRs
+that still need a human approval.
 
 Every formula also builds from source on the user's machine; none ship prebuilt
 binaries. `hc` publishes goreleaser assets for darwin/linux × amd64/arm64, so a
@@ -563,7 +571,7 @@ binary-download formula (`on_macos`/`on_arm` blocks selecting the right asset) w
 install in seconds instead of minutes — but that is also the point at which Gatekeeper
 becomes relevant again, since an unsigned downloaded binary is exactly what the
 deprecation in `readme.md` targets. Source builds sidestep it and keep every formula
-uniform. Revisit if `loch`'s Rust build time becomes annoying once it ships.
+uniform. Revisit if `loch`'s Rust build time becomes annoying.
 
 ### `livecheck`
 
@@ -581,22 +589,26 @@ end
 package name from the URL filename, which yields `sosig-0.3.0-py3-none` for a wheel and
 requests a project page that does not exist. Its block names
 `https://pypi.org/pypi/sosig/json` directly and matches the version out of the JSON.
+It returns to `strategy :pypi` with the sdist switch.
+
+These blocks also drive the automated bumps described under
+[CI: Livecheck](#ci-livecheck).
 
 ---
 
 ## CI: Formula Audit
 
-The workflow audits, installs, and tests every formula on push and PR. Two details
-matter:
+`audit.yml` audits, installs, and tests every formula on pushes and PRs that touch
+`Formula/`, and on manual dispatch. Three details matter:
 
-- `brew tap <user>/<name> <path>` with a local path taps the working copy directly, so CI
-  tests the committed formulas rather than whatever is published.
+- `setup-homebrew` symlinks a `homebrew-*` checkout into `Library/Taps`, so CI tests the
+  committed formulas rather than whatever is published. A separate `brew tap <path>`
+  step conflicts with that symlink and must not be added.
 - Building `sosig` compiles `pydantic-core` from Rust source, which is slow. The job
   needs a generous timeout.
-
-The matrix covers all six formulas. The three awaiting upstream tags carry placeholder
-checksums, so their CI jobs fail at the download step until the `url`/`sha256` pair is
-filled in — a visible reminder rather than a silent gap.
+- Every action is pinned to a commit SHA, with the release in a trailing comment.
+  Dependabot (`.github/dependabot.yml`) proposes grouped weekly bumps with a 7-day
+  cooldown.
 
 ```yaml
 # .github/workflows/audit.yml
@@ -611,9 +623,14 @@ on:
     paths:
       - "Formula/**"
       - ".github/workflows/audit.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit:
@@ -623,23 +640,24 @@ jobs:
       fail-fast: false
       matrix:
         formula: [hc, loch, g3, mdcsv, mgmt, sosig]
+    env:
+      FORMULA: will-wright-eng/tools/${{ matrix.formula }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Tap this working copy
-        run: brew tap will-wright-eng/tools "$(pwd)"
+        uses: Homebrew/actions/setup-homebrew@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
 
       - name: Audit
-        run: brew audit --strict will-wright-eng/tools/${{ matrix.formula }}
+        run: brew audit --strict "$FORMULA"
 
       - name: Install
-        run: brew install --build-from-source will-wright-eng/tools/${{ matrix.formula }}
+        run: brew install --build-from-source "$FORMULA"
 
       - name: Test
-        run: brew test will-wright-eng/tools/${{ matrix.formula }}
+        run: brew test "$FORMULA"
 ```
 
 A matrix is used rather than one job over all formulas so a single broken formula does
@@ -652,28 +670,57 @@ explicit three steps above are easier to reason about for a personal tap.
 
 ---
 
+## CI: Livecheck
+
+`livecheck.yml` runs at 14:00 UTC on the 1st of each month, and on manual dispatch:
+
+1. `brew livecheck --tap will-wright-eng/tools --json` writes every formula's current
+   and latest version. A livecheck error does not stop the run; the bump script reports
+   it after bumping the formulas that did resolve, and the job fails.
+2. `.github/scripts/bump_formula.py` rewrites the top-level `url` and `sha256` of each
+   outdated formula. GitHub archives are re-hashed after swapping the version in the
+   URL; PyPI files are looked up in the PyPI JSON API. Formulas that include
+   `Language::Python::Virtualenv` also get `brew update-python-resources`.
+3. The changes are force-pushed to a `livecheck/bump` branch, and one PR is opened or
+   updated with a conventional-commit title such as `chore(hc): bump hc to 1.4.2`.
+4. The workflow dispatches `audit.yml` against that branch, because pushes made with
+   `GITHUB_TOKEN` do not trigger other workflows, but `workflow_dispatch` does.
+
+The job checks out with `persist-credentials: false` and passes the token only to the
+push and `gh` steps, so `brew` and the bump script never see it. It needs
+`contents: write`, `pull-requests: write`, and `actions: write`, and the repository
+setting that lets Actions create PRs.
+
+The bot changes only `url`, `sha256`, and resources. A new build dependency — such as
+`cmake` if `mgmt` starts pulling in `awscrt` — still has to be added by hand, and the
+PR's `audit.yml` run is what surfaces the need.
+
+---
+
 ## Setup Checklist
+
+Ongoing work lives in [formula-readiness.md](formula-readiness.md); this list records
+the initial setup.
 
 **One-time repo setup**
 - [x] Add `Formula/` with the six `.rb` files
-- [x] Add `.github/workflows/audit.yml`
+- [x] Add `.github/workflows/audit.yml`, SHA-pinned, with Dependabot for actions
+- [x] Add `.github/workflows/livecheck.yml` and `.github/scripts/bump_formula.py`
 - [x] Expand `readme.md` with install instructions
 
-**Ready now (no upstream changes needed)**
+**Formulas**
 - [x] `Formula/hc.rb` — tag `v1.4.1`, sha256 verified; installs and tests clean
 - [x] `Formula/mgmt.rb` — PyPI sdist pinned; 14 resources generated
 - [x] `Formula/sosig.rb` — wheel pattern verified; 14 resources generated via
       `--package-name sosig`
+- [x] `loch` — GPL-3 LICENSE added, tagged `v0.1.0`, `sha256` pinned
+- [x] `g3` — tagged `v0.1.0`, `sha256` pinned
+- [x] `mdcsv` — GPL-3 LICENSE added, tagged `v0.1.0`, `sha256` pinned
 
-**Blocked on the tool's own repo** — formula written, awaiting an immutable `url`
-- [ ] `loch` — add a GPL-3 LICENSE, tag `v0.1.0`, then fill in `Formula/loch.rb`'s `sha256`
-- [ ] `g3` — tag `v0.1.0`, then fill in `Formula/g3.rb`'s `sha256`
-- [ ] `mdcsv` — add a GPL-3 LICENSE, tag `v0.1.0`, then fill in `Formula/mdcsv.rb`'s `sha256`
-
-**Non-blocking upstream follow-ups**
-- [ ] `social-signals` — add a LICENSE file
-- [ ] `social-signals` — fix `readme = "../README.md"`, republish, then move
-      `Formula/sosig.rb` to the sdist pattern
+**`social-signals` follow-ups**
+- [x] Add a LICENSE file
+- [x] Fix `readme = "../README.md"` and republish as `0.3.1`
+- [ ] Move `Formula/sosig.rb` to the `0.3.1` sdist pattern with `license "GPL-3.0-or-later"`
 
 **Per-formula verification loop**
 
@@ -682,6 +729,7 @@ brew tap will-wright-eng/tools "$(pwd)"
 brew audit --strict will-wright-eng/tools/<name>
 brew install --build-from-source will-wright-eng/tools/<name>
 brew test will-wright-eng/tools/<name>
+brew livecheck will-wright-eng/tools/<name>
 brew uninstall <name>
 ```
 
@@ -695,7 +743,7 @@ repairs it.
 
 ```bash
 brew tap will-wright-eng/tools
-brew install hc mgmt sosig
+brew install g3 hc loch mdcsv mgmt sosig
 ```
 
 Or without tapping first:
@@ -711,7 +759,8 @@ from the repository name `homebrew-tools`.
 
 ## Maintenance
 
-When a new version of a tool is released:
+When a new version of a tool is released, `livecheck.yml` opens the bump PR on its next
+monthly run (or on manual dispatch). To bump by hand instead:
 
 1. Update `url` to the new tag or sdist/wheel.
 2. Recompute the checksum: `curl -sL <url> | shasum -a 256`.
@@ -727,6 +776,7 @@ the PR; `brew bump-python-resources-pr` does the same for the resource blocks.
 
 ## References
 
+- [formula-readiness.md](formula-readiness.md) — current status, open tasks, upstream checks
 - [Homebrew Formula Cookbook](https://docs.brew.sh/Formula-Cookbook)
 - [Homebrew Python for Formula Authors](https://docs.brew.sh/Python-for-Formula-Authors)
 - [Homebrew Taps documentation](https://docs.brew.sh/Taps)
@@ -735,4 +785,6 @@ the PR; `brew bump-python-resources-pr` does the same for the resource blocks.
 - [SPDX License List](https://spdx.org/licenses/) — `GPL-3.0-or-later`, `MIT`
 - [PEP 427 — The Wheel Binary Package Format](https://peps.python.org/pep-0427/) — wheel filename rules
 - [Homebrew discussion #6482](https://github.com/orgs/Homebrew/discussions/6482) — the Gatekeeper/custom-tap thread in `readme.md`
+- [Homebrew/actions](https://github.com/Homebrew/actions) — `setup-homebrew`
+- [GitHub: Triggering a workflow from a workflow](https://docs.github.com/en/actions/using-workflows/triggering-a-workflow#triggering-a-workflow-from-a-workflow) — why `livecheck.yml` dispatches `audit.yml`
 - Homebrew source consulted directly: `Library/Homebrew/formula.rb` (`std_go_args`, `std_cargo_args`, `std_pip_args`), `Library/Homebrew/language/python.rb` (`virtualenv_install_with_resources`, `pip_install`), `Library/Homebrew/formula_assertions.rb` (`shell_output`), `Library/Homebrew/rubocops/shared/desc_helper.rb`, `Library/Homebrew/utils/pypi.rb`, `Library/Homebrew/livecheck/strategy/pypi.rb`

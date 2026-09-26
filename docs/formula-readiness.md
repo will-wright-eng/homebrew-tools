@@ -62,7 +62,7 @@ In suggested order. Details are under [Tasks](#tasks).
 | 3 | **T6.6** Merge Dependabot PR #2 (`actions/checkout` → `v7.0.1`) | this repo | — |
 | 4 | **T4.6** Move `hc` to `v1.4.2` | this repo | — |
 | 5 | **T2.1 + T5.5** Move `sosig` to the `0.3.1` sdist, license `GPL-3.0-or-later` | this repo | — |
-| 6 | **T4.5** Refresh `readme.md` and `design-doc.md` | this repo | 4, 5 |
+| 6 | **T4.5** Update the `hc` and `sosig` sections of the docs | this repo | 4, 5 |
 | 7 | **T3.5** Publish `mgmt` `0.12.1` to PyPI, then bump the formula | `media-mgmt-cli`, then this repo | — |
 | 8 | **T5.6** Fix the `social-signals` release tag, author email, leftover `sosig/` dir | `social-signals` | — |
 | 9 | **T6.7** Enable immutable releases upstream | all six upstream repos | 7, 8 |
@@ -83,7 +83,7 @@ Phase 6  Repo hardening         ─── independent; T6.1 unblocks livecheck P
 ### D1: `sosig` license
 
 **Resolved: `GPL-3.0-or-later`.** This follows the default in
-[design-doc.md](design-doc.md#on-the-missing-licenses): GPL for tools authored here,
+[design-doc.md](design-doc.md#licenses): GPL for tools authored here,
 with `gists3`'s MIT as the exception. `social-signals` `7c97b25` adds the GPL-3.0
 LICENSE and sets `license = "GPL-3.0-or-later"`. `Formula/sosig.rb` still says `MIT`
 (T2.1).
@@ -149,20 +149,13 @@ later version. See [LICENSE](LICENSE).
   | `loch` | `f4e334bced7ec2593f1e551825604cdcc0fa96102071cc0e0bcba6853c149cab` |
   | `mdcsv` | `356fef732a661ae61b02bc33af44bfa26d7a496c28e0a4c4287134f779323953` |
 
-- [ ] **T4.5 Refresh the docs.**
-  - `readme.md`: mark `g3`, `loch`, `mdcsv` as "Ready" and drop the placeholder-checksum
-    paragraph.
-  - `design-doc.md`:
-    - Tool Inventory: licenses and release state for `loch`, `g3`, `sosig`, `mdcsv`;
-      `loch` is Rust `1.87`, not `1.85`.
-    - Repository structure tree: `design-doc.md` lives in `docs/`, and add
-      `.github/scripts/` and `livecheck.yml`.
-    - CI section: replace the workflow snippet with the current `audit.yml` (SHA pins,
-      no `brew tap` step), remove the "placeholder checksums fail at download" paragraph,
-      and describe `livecheck.yml`.
-    - Setup Checklist: tick the "Blocked on the tool's own repo" and `social-signals`
-      items once T5.5 lands.
-    - `sosig` section: describe the sdist pattern once T5.5 lands.
+- [ ] **T4.5 Refresh the docs.** `readme.md` and `design-doc.md` now reflect the
+      tagged formulas, upstream licenses, repo layout, and both workflows. Left:
+  - after T4.6: `hc` version in `readme.md`, and the `hc` snippet, `sha256` note, and
+    Tool Inventory row in `design-doc.md`.
+  - after T5.5: `sosig` version in `readme.md`; in `design-doc.md`, rewrite the `sosig`
+    section around the sdist pattern, update its `livecheck` note and Versioning
+    Strategy row, and tick the last `social-signals` item in the Setup Checklist.
 - [ ] **T4.6 Move `hc` to `v1.4.2`.** Upstream published `v1.4.2` as Latest. Update
       `url` and `sha256` in `Formula/hc.rb`, or merge the first livecheck PR:
 
