@@ -1,7 +1,8 @@
 # homebrew-tools
 
 A personal Homebrew tap distributing six developer tools that each ship with a
-different, language-specific install path. See [design-doc.md](docs/design-doc.md) for
+different, language-specific install path, plus a source build of the third-party
+[disktree](https://github.com/tobi/disktree) app. See [design-doc.md](docs/design-doc.md) for
 the formula design and the reasoning behind it, and
 [formula-readiness.md](docs/formula-readiness.md) for current status and open work.
 
@@ -9,7 +10,7 @@ the formula design and the reasoning behind it, and
 
 ```bash
 brew tap will-wright-eng/tools
-brew install g3 hc loch mdcsv mgmt sosig
+brew install disktree g3 hc loch mdcsv mgmt sosig
 ```
 
 Or without tapping first:
@@ -22,6 +23,7 @@ brew install will-wright-eng/tools/hc
 
 | Formula | Description | Version | Status |
 |---------|-------------|---------|--------|
+| `disktree` | Treemap for finding and removing what fills your disk (macOS app + CLI) | `0.10.1` | Added; awaiting first CI run |
 | `g3` | Object storage CLI over GitHub Gists, speaking aws-cli vocabulary | `0.1.0` | Ready |
 | `hc` | Hot/cold codebase analysis: git churn crossed with file complexity | `1.4.1` | Ready; `1.4.2` bump pending |
 | `loch` | Per-commit LOC history via gix and tokei, without a working tree | `0.1.0` | Ready |
@@ -55,5 +57,6 @@ the macOS Gatekeeper deprecation that motivated this tap does not apply.
 
 - [design-doc.md](docs/design-doc.md): formula design by language
 - [formula-readiness.md](docs/formula-readiness.md): status, tasks, and upstream checks
+- [disktree-formula-spec.md](docs/disktree-formula-spec.md): the `disktree` formula design
 - [Homebrew discussion #6482](https://github.com/orgs/Homebrew/discussions/6482): the Gatekeeper/custom-tap thread
 - [Homebrew Taps documentation](https://docs.brew.sh/Taps)

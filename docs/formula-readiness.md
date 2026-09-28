@@ -12,6 +12,9 @@ complete. Three formulas still have work left:
   is ready to switch to (T2.1 + T5.5).
 - **`mgmt`:** installs and is correctly licensed, but upstream's `0.12.0` never reached
   PyPI (T3.5).
+- **`disktree`:** third-party formula added (spec:
+  [disktree-formula-spec.md](disktree-formula-spec.md)); passes `brew audit --strict
+  --online` and `brew livecheck` locally, awaiting its first CI run and manual checks (T7.1).
 
 A monthly livecheck workflow now opens bump PRs automatically, but it can't create
 PRs until the repo allows Actions to (T6.1). The remaining work is otherwise docs, repo
@@ -34,12 +37,13 @@ A formula is **valid** when:
 | `hc` | `hc` | `v1.4.1` | `v1.4.2` | GPL-3.0; or-later notice from `v1.4.2` | `GPL-3.0-or-later` | Outdated; license claim backed only after T4.6 |
 | `sosig` | `social-signals` | `0.3.0` wheel | `0.3.1` sdist + wheel | GPL-3.0 + or-later notice from `0.3.1` | `MIT` | Outdated; **license wrong** (T2.1) |
 | `mgmt` | `media-mgmt-cli` | PyPI `0.11.0` sdist | PyPI `0.11.0` | GPL-3.0, `GPLv3+` classifier | `GPL-3.0-or-later` | **Valid**; upstream `0.12.0` unpublished (T3.5) |
+| `disktree` | `tobi/disktree` (third party) | `v0.10.1` | `v0.10.1` | MIT | `MIT` | Pending first CI run (T7.1) |
 
 ### CI
 
 | Workflow | Trigger | State |
 | -------- | ------- | ----- |
-| `audit.yml` | push/PR touching `Formula/**`, manual dispatch | Passing on `main` for all six formulas |
+| `audit.yml` | push/PR touching `Formula/**`, manual dispatch | Passing on `main` for the original six; `disktree` added to the matrix |
 | `livecheck.yml` | 1st of each month 14:00 UTC, manual dispatch | Not yet run; PR creation blocked until T6.1 |
 
 `livecheck.yml` runs `brew livecheck --tap will-wright-eng/tools --json`, then
@@ -66,6 +70,7 @@ In suggested order. Details are under [Tasks](#tasks).
 | 7 | **T3.5** Publish `mgmt` `0.12.1` to PyPI, then bump the formula | `media-mgmt-cli`, then this repo | — |
 | 8 | **T5.6** Fix the `social-signals` release tag, author email, leftover `sosig/` dir | `social-signals` | — |
 | 9 | **T6.7** Enable immutable releases upstream | all six upstream repos | 7, 8 |
+| 10 | **T7.1** Land `disktree` and pass its CI and manual checks | this repo | — |
 
 ## Critical Path
 
@@ -269,6 +274,14 @@ Not recommended:
 - **Required status checks on the ruleset:** `audit.yml` is path-filtered, so PRs that
   don't touch `Formula/**` would wait forever for checks that never run.
 - **CODEOWNERS:** it adds nothing with a single maintainer.
+
+### Phase 7: Third-party formulas
+
+- [ ] **T7.1 `disktree`.** `Formula/disktree.rb` and its `audit.yml` matrix entry are
+      in. Remaining: a green `audit.yml` run, then the manual checks in
+      [disktree-formula-spec.md](disktree-formula-spec.md#testing) (`codesign --verify`,
+      the app opening from Finder via the caveats' `~/Applications` symlink,
+      `--HEAD` build, clean uninstall). T6.7 does not apply: the upstream repo is not ours.
 
 ## Upstream Check (2026-09-25)
 

@@ -5,7 +5,9 @@
 A personal Homebrew tap (`will-wright-eng/homebrew-tools`) distributing six developer
 tools that today each have a different, language-specific install path — `go install`,
 `cargo build`, `uv tool install`, or `git clone && make install`. The tap collapses
-those into one command per tool, with pinned versions and auditable checksums.
+those into one command per tool, with pinned versions and auditable checksums. A
+seventh formula, `disktree`, packages a third-party GUI app; see
+[Third-party formula: `disktree`](#third-party-formula-disktree).
 
 Scope is deliberately a **tap**, not submissions to `homebrew-core`. Core requires
 notability thresholds (maintained, stable, widely used) these tools do not meet, and
@@ -19,8 +21,9 @@ downloaded executable. `Homebrew/deprecate_disable.rb` exposes `:fails_gatekeepe
 only as a cask deprecation reason, and the audit that enforces it lives in
 `Library/Homebrew/cask/audit.rb`. This tap is unaffected.
 
-All six formulas are committed, pinned to immutable upstream artifacts, and pass
-audit, install, and test in CI. `hc` and `sosig` are one release behind upstream;
+All seven formulas are committed and pinned to immutable upstream artifacts. The
+original six pass audit, install, and test in CI; `disktree` joins the same matrix.
+`hc` and `sosig` are one release behind upstream;
 [formula-readiness.md](formula-readiness.md) tracks that and all other open work.
 
 ---
@@ -37,6 +40,7 @@ Facts below were read from each repository and from PyPI, not assumed.
 | `sosig` | `will-wright-eng/social-signals` | Python ≥3.10 | `sosig` | GPL-3.0-or-later from `0.3.1` | On PyPI as `sosig` `0.3.1`; formula on `0.3.0` wheel |
 | `mgmt` | `will-wright-eng/media-mgmt-cli` | Python ≥3.9 | `mgmt` | GPL-3.0-or-later | On PyPI as `mgmt` `0.11.0`; GitHub `v0.12.0` never reached PyPI |
 | `mdcsv` | `will-wright-eng/mdcsv` | Go 1.23.4 | `mdcsv` | GPL-3.0-or-later | Tagged `v0.1.0` |
+| `disktree` | `tobi/disktree` (third party) | Rust 1.97 | `disktree` (+ `disktree.app`) | MIT | Tagged `v0.10.1` |
 
 Every tool now has a tag or published package and a LICENSE file; see
 [Upstream Prerequisites](#upstream-prerequisites) for how they got there.
@@ -61,6 +65,7 @@ second name is one more thing to keep in sync for no discoverability gain.
 ```
 homebrew-tools/
 ├── Formula/
+│   ├── disktree.rb
 │   ├── g3.rb
 │   ├── hc.rb
 │   ├── loch.rb
@@ -76,6 +81,7 @@ homebrew-tools/
 │       └── livecheck.yml
 ├── docs/
 │   ├── design-doc.md
+│   ├── disktree-formula-spec.md
 │   └── formula-readiness.md
 └── readme.md
 ```
@@ -465,6 +471,31 @@ re-export.
 
 ---
 
+### Third-party formula: `disktree`
+
+`disktree` is the tap's first formula for a tool not authored here, and its first GUI
+app. It builds [tobi/disktree](https://github.com/tobi/disktree) from its release tag
+with upstream's own bundler, `cargo xtask bundle`, which produces an ad-hoc signed
+`target/bundle/disktree.app`. The formula installs that app into the keg and symlinks
+`bin/disktree` to `disktree.app/Contents/MacOS/disktree`, mirroring upstream's
+`make install`.
+
+- It is a formula rather than a cask so the tap keeps shipping no downloaded binaries,
+  and a locally built app carries no quarantine flag.
+- `depends_on :macos`: Linux needs Vulkan/Wayland libraries and is out of scope.
+- No Metal compiler is needed, because `gpui-kit` enables `runtime_shaders` on macOS.
+  If that changes, the formula needs `depends_on xcode: :build`, and CI will not catch
+  it because GitHub's macOS runners ship full Xcode.
+- The ad-hoc signature changes every build, so Full Disk Access may need re-granting
+  after upgrades; the caveats say so.
+- Upstream's `rust-toolchain.toml` is ignored (Homebrew has no rustup); watch
+  `rust-version` in its `Cargo.toml` when bumping.
+
+The full design, test plan, and risks are in
+[disktree-formula-spec.md](disktree-formula-spec.md).
+
+---
+
 ## Upstream Prerequisites
 
 A formula's `url` must point at an immutable artifact — a tag, a published package, or a
@@ -519,7 +550,7 @@ destination.
 
 ### `head` blocks
 
-The four source-built formulas (`hc`, `loch`, `g3`, `mdcsv`) each include a `head`
+The five source-built formulas (`hc`, `loch`, `g3`, `mdcsv`, `disktree`) each include a `head`
 stanza so `brew install --HEAD <tool>` tracks `main`. This is allowed in taps
 (`formula_auditor.rb:875` only rejects *HEAD-only* formulas, and only for core). It
 gives a supported way to install untagged work without compromising the stable,
@@ -532,7 +563,7 @@ published PyPI artifact rather than a git remote.
 
 `brew audit` enforces rules on `desc` via `RuboCop::Cop::DescHelper`: ≤80 characters, no
 leading article, starts with a capital, no trailing full stop, must not start with the
-formula name, `command-line` must be hyphenated, no emoji. All six were checked against
+formula name, `command-line` must be hyphenated, no emoji. All seven were checked against
 those rules:
 
 | Formula | `desc` | Length |
@@ -543,6 +574,7 @@ those rules:
 | `sosig` | Analyze GitHub repositories and calculate social-signal metrics | 63 |
 | `mgmt` | Command-line interface to search and manage media assets in S3 | 62 |
 | `mdcsv` | Convert between markdown tables and CSV | 39 |
+| `disktree` | Treemap for finding and removing what fills your disk | 53 |
 
 Note `mgmt`'s upstream summary begins "An intuitive command line interface…", which
 would trip three separate rules (leading article, unhyphenated "command line", and
@@ -558,6 +590,7 @@ length). The rewrite above is deliberate.
 | `loch` | GitHub release tag | Bump `url` tag, recompute `sha256` |
 | `g3` | GitHub release tag | Bump `url` tag, recompute `sha256` |
 | `mdcsv` | GitHub release tag | Bump `url` tag, recompute `sha256` |
+| `disktree` | GitHub release tag | Bump `url` tag, recompute `sha256`; check upstream `rust-version` |
 | `mgmt` | PyPI sdist | Bump `url`/`sha256`, re-run `brew update-python-resources` |
 | `sosig` | PyPI wheel | Bump `url`/`sha256`, re-run with `--package-name sosig` |
 
@@ -576,7 +609,7 @@ uniform. Revisit if `loch`'s Rust build time becomes annoying.
 ### `livecheck`
 
 Every formula carries a `livecheck` block so `brew livecheck` reports when the tap is
-behind upstream. The four GitHub-sourced formulas use:
+behind upstream. The five GitHub-sourced formulas use:
 
 ```ruby
 livecheck do
@@ -639,7 +672,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        formula: [hc, loch, g3, mdcsv, mgmt, sosig]
+        formula: [hc, loch, g3, mdcsv, mgmt, sosig, disktree]
     env:
       FORMULA: will-wright-eng/tools/${{ matrix.formula }}
     steps:
