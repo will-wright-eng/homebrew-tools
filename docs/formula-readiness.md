@@ -43,14 +43,15 @@ A formula is **valid** when:
 
 | Workflow | Trigger | State |
 | -------- | ------- | ----- |
-| `audit.yml` | push/PR touching `Formula/**`, manual dispatch | Passing on `main` for the original six; `disktree` added to the matrix |
+| `audit.yml` | push to `main` or PR touching `Formula/**` (changed formulae only), manual dispatch | Passing on `main` for the original six; `disktree` pending first run |
 | `livecheck.yml` | 1st of each month 14:00 UTC, manual dispatch | Not yet run; PR creation blocked until T6.1 |
 
 `livecheck.yml` runs `brew livecheck --tap will-wright-eng/tools --json`, then
 `.github/scripts/bump_formula.py` rewrites `url` and `sha256` for each outdated formula
 (and regenerates Python resources). The workflow pushes a `livecheck/bump` branch,
-opens or updates a PR, and dispatches `audit.yml` against that branch, because pushes
-made with `GITHUB_TOKEN` don't trigger other workflows. A livecheck error fails the job.
+opens or updates a PR, and dispatches `audit.yml` for the bumped formulae against that
+branch, because pushes made with `GITHUB_TOKEN` don't trigger other workflows. A
+livecheck error fails the job.
 
 Its first run will propose `hc` → `1.4.2` and `sosig` → the `0.3.1` **wheel**. Do
 T5.5 first so the bot bumps the sdist-based formula instead.
@@ -277,8 +278,8 @@ Not recommended:
 
 ### Phase 7: Third-party formulas
 
-- [ ] **T7.1 `disktree`.** `Formula/disktree.rb` and its `audit.yml` matrix entry are
-      in. Remaining: a green `audit.yml` run, then the manual checks in
+- [ ] **T7.1 `disktree`.** `Formula/disktree.rb` is in; `audit.yml` picks it up from
+      `Formula/`. Remaining: a green `audit.yml` run, then the manual checks in
       [disktree-formula-spec.md](disktree-formula-spec.md#testing) (`codesign --verify`,
       the app opening from Finder via the caveats' `~/Applications` symlink,
       `--HEAD` build, clean uninstall). T6.7 does not apply: the upstream repo is not ours.

@@ -34,7 +34,7 @@ brew install will-wright-eng/tools/hc
 ## CI
 
 - `audit.yml` runs `brew audit --strict`, `brew install --build-from-source`, and
-  `brew test` for every formula on pushes and PRs that touch `Formula/`.
+  `brew test` for each formula changed by a push to `main` or a PR.
 - `livecheck.yml` runs `brew livecheck` monthly and opens a `livecheck/bump` PR for
   any formula behind upstream.
 - Dependabot keeps the SHA-pinned actions current.
