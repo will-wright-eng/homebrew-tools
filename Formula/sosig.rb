@@ -5,8 +5,8 @@ class Sosig < Formula
   homepage "https://github.com/will-wright-eng/social-signals"
   # The 0.3.0 sdist is unbuildable: pyproject.toml points readme at ../README.md,
   # outside the package root, so hatchling rejects it. Install the wheel instead.
-  url "https://files.pythonhosted.org/packages/0c/91/5a0be09985bb88704534f2b733c0b03c99586770a292d8d8e22501ef411d/sosig-0.3.0-py3-none-any.whl", using: :nounzip
-  sha256 "7097eb473b1d620a08f0bdd38ac34686bcb1756c63d186b206f57e56eb4eb0f5"
+  url "https://files.pythonhosted.org/packages/06/ef/a3a187249a1dc040219ad69ef69f40902126d4ef07686bfe5f56f43f0457/sosig-0.3.1-py3-none-any.whl", using: :nounzip
+  sha256 "5f6499fa89620a427f00f4fbb638b9021c159d868b2d904af01bda09a58aebee"
   license "MIT"
 
   # `strategy :pypi` reads "sosig-0.3.0-py3-none" as the package name off a wheel
@@ -29,6 +29,11 @@ class Sosig < Formula
   resource "annotated-types" do
     url "https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz"
     sha256 "13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7"
+  end
+
+  resource "greenlet" do
+    url "https://files.pythonhosted.org/packages/3e/6e/0091f175ccd02b02bc8811bbcbcc6ac2e980be116e3b2f7a736ca322bf84/greenlet-3.5.6.tar.gz"
+    sha256 "8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575"
   end
 
   resource "markdown-it-py" do
@@ -72,8 +77,8 @@ class Sosig < Formula
   end
 
   resource "sqlmodel" do
-    url "https://files.pythonhosted.org/packages/33/05/2883610972556b37dcbe6e98cdf81f0117bd78f2abc7bf42864d27218611/sqlmodel-0.0.45.tar.gz"
-    sha256 "cd9761e964400311c2fb8f052b8adba4fa8ed569c4681d4573763d12d5efc91e"
+    url "https://files.pythonhosted.org/packages/4f/60/aa4cb68f03fa6bd1ca9e9a9ca89c3bc6c67f50981d0abcd9d6364609516d/sqlmodel-0.0.47.tar.gz"
+    sha256 "3606430ea6db7f00c8ae2157458b9766644ea3ad365c601e26a86cf23f5910d5"
   end
 
   resource "typer" do
