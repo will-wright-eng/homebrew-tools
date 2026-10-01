@@ -1,8 +1,8 @@
 class Hc < Formula
   desc "Hot/cold codebase analysis: git churn crossed with file complexity"
   homepage "https://github.com/will-wright-eng/hc"
-  url "https://github.com/will-wright-eng/hc/archive/refs/tags/v1.4.1.tar.gz"
-  sha256 "590cae7805d61d319456db04e3ffc35742b0167b8e70b9623efbd12689370236"
+  url "https://github.com/will-wright-eng/hc/archive/refs/tags/v1.4.2.tar.gz"
+  sha256 "0de3c8babbb56f98adfe7d4648966eda0db34808ac5b145133c0250300345ab7"
   license "GPL-3.0-or-later"
   head "https://github.com/will-wright-eng/hc.git", branch: "main"
 
