@@ -2,30 +2,75 @@ name: Audit
 
 on:
   push:
+    branches: [main]
     paths:
       - "Formula/**"
       - ".github/workflows/audit.yml"
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - "Formula/**"
       - ".github/workflows/audit.yml"
   workflow_dispatch:
+    inputs:
+      formulae:
+        description: Space-separated formulae to audit; empty audits all
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
+# Each push to main audits only its own diff, so cancelling one would skip its formulae.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      formulae: ${{ steps.select.outputs.formulae }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Audits every formula when this workflow changes, or when the diff base is
+      # unreachable (new branch, force push).
+      - name: Select formulae
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.formulae }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          all=$(basename -s .rb Formula/*.rb)
+          if [ "$EVENT" = workflow_dispatch ]; then
+            names=${REQUESTED:-$all}
+          elif ! changed=$(git diff --name-only --diff-filter=d "$BASE...$HEAD") ||
+               grep -qxF .github/workflows/audit.yml <<<"$changed"; then
+            names=$all
+          else
+            names=$(sed -nE 's|^Formula/([^/]+)\.rb$|\1|p' <<<"$changed")
+          fi
+          for name in $names; do
+            [ -f "Formula/$name.rb" ] || { echo "::error::No formula named '$name'"; exit 1; }
+          done
+          echo "formulae=$(jq -cnR '[inputs | splits("\\s+") | select(length > 0)]' <<<"$names")" >> "$GITHUB_OUTPUT"
+
   audit:
+    needs: select
+    if: needs.select.outputs.formulae != '[]'
     runs-on: macos-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        formula: [hc, loch, g3, mdcsv, mgmt, sosig, disktree]
+        formula: ${{ fromJSON(needs.select.outputs.formulae) }}
     env:
       FORMULA: will-wright-eng/tools/${{ matrix.formula }}
     steps:

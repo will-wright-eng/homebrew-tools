@@ -65,4 +65,5 @@ jobs:
         if: ${{ !cancelled() && steps.bump.outputs.bumped != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run audit.yml --ref "$BRANCH"
+          BUMPED: ${{ steps.bump.outputs.bumped }}
+        run: gh workflow run audit.yml --ref "$BRANCH" -f formulae="$BUMPED"

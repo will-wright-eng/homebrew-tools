@@ -22,7 +22,7 @@ only as a cask deprecation reason, and the audit that enforces it lives in
 `Library/Homebrew/cask/audit.rb`. This tap is unaffected.
 
 All seven formulas are committed and pinned to immutable upstream artifacts. The
-original six pass audit, install, and test in CI; `disktree` joins the same matrix.
+original six pass audit, install, and test in CI; `disktree` awaits its first run.
 `hc` and `sosig` are one release behind upstream;
 [formula-readiness.md](formula-readiness.md) tracks that and all other open work.
 
@@ -631,9 +631,20 @@ These blocks also drive the automated bumps described under
 
 ## CI: Formula Audit
 
-`audit.yml` audits, installs, and tests every formula on pushes and PRs that touch
-`Formula/`, and on manual dispatch. Three details matter:
+`audit.yml` audits, installs, and tests each changed formula on pushes to `main` and on
+PRs (opened, synchronized, reopened) that touch `Formula/`, and on manual dispatch. Five
+details matter:
 
+- A `select` job diffs the event's base against its head and builds the matrix from the
+  changed `Formula/*.rb` files, so a PR that bumps `hc` does not rebuild `sosig`. A
+  change to `audit.yml` itself, or a diff base that cannot be resolved (new branch,
+  force push), selects every formula. Manual dispatch takes an optional `formulae`
+  input and audits everything when it is empty; `livecheck.yml` passes the formulae it
+  bumped. The formula list is read from `Formula/`, so a new formula needs no workflow
+  change.
+- Pushes are limited to `main` so a PR branch is not audited twice, once for the push
+  and once for the PR. Only PR runs cancel in progress: each `main` run audits only its
+  own push, so cancelling one would leave its formulae unaudited.
 - `setup-homebrew` symlinks a `homebrew-*` checkout into `Library/Taps`, so CI tests the
   committed formulas rather than whatever is published. A separate `brew tap <path>`
   step conflicts with that symlink and must not be added.
@@ -649,34 +660,79 @@ name: Audit
 
 on:
   push:
+    branches: [main]
     paths:
       - "Formula/**"
       - ".github/workflows/audit.yml"
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - "Formula/**"
       - ".github/workflows/audit.yml"
   workflow_dispatch:
+    inputs:
+      formulae:
+        description: Space-separated formulae to audit; empty audits all
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
+# Each push to main audits only its own diff, so cancelling one would skip its formulae.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      formulae: ${{ steps.select.outputs.formulae }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Audits every formula when this workflow changes, or when the diff base is
+      # unreachable (new branch, force push).
+      - name: Select formulae
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.formulae }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          all=$(basename -s .rb Formula/*.rb)
+          if [ "$EVENT" = workflow_dispatch ]; then
+            names=${REQUESTED:-$all}
+          elif ! changed=$(git diff --name-only --diff-filter=d "$BASE...$HEAD") ||
+               grep -qxF .github/workflows/audit.yml <<<"$changed"; then
+            names=$all
+          else
+            names=$(sed -nE 's|^Formula/([^/]+)\.rb$|\1|p' <<<"$changed")
+          fi
+          for name in $names; do
+            [ -f "Formula/$name.rb" ] || { echo "::error::No formula named '$name'"; exit 1; }
+          done
+          echo "formulae=$(jq -cnR '[inputs | splits("\\s+") | select(length > 0)]' <<<"$names")" >> "$GITHUB_OUTPUT"
+
   audit:
+    needs: select
+    if: needs.select.outputs.formulae != '[]'
     runs-on: macos-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        formula: [hc, loch, g3, mdcsv, mgmt, sosig, disktree]
+        formula: ${{ fromJSON(needs.select.outputs.formulae) }}
     env:
       FORMULA: will-wright-eng/tools/${{ matrix.formula }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -716,8 +772,9 @@ explicit three steps above are easier to reason about for a personal tap.
    `Language::Python::Virtualenv` also get `brew update-python-resources`.
 3. The changes are force-pushed to a `livecheck/bump` branch, and one PR is opened or
    updated with a conventional-commit title such as `chore(hc): bump hc to 1.4.2`.
-4. The workflow dispatches `audit.yml` against that branch, because pushes made with
-   `GITHUB_TOKEN` do not trigger other workflows, but `workflow_dispatch` does.
+4. The workflow dispatches `audit.yml` against that branch for the bumped formulae,
+   because pushes made with `GITHUB_TOKEN` do not trigger other workflows, but
+   `workflow_dispatch` does.
 
 The job checks out with `persist-credentials: false` and passes the token only to the
 push and `gh` steps, so `brew` and the bump script never see it. It needs
