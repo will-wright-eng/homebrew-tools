@@ -27,7 +27,7 @@ brew install will-wright-eng/tools/hc
 | `g3` | Object storage CLI over GitHub Gists, speaking aws-cli vocabulary | `0.1.0` | Ready |
 | `hc` | Hot/cold codebase analysis: git churn crossed with file complexity | `1.4.1` | Ready; `1.4.2` bump pending |
 | `loch` | Per-commit LOC history via gix and tokei, without a working tree | `0.1.0` | Ready |
-| `mdcsv` | Convert between markdown tables and CSV | `0.1.0` | Ready |
+| `mdcsv` | Convert between markdown tables and CSV | `0.3.1` | Ready |
 | `mgmt` | Command-line interface to search and manage media assets in S3 | `0.11.0` | Ready |
 | `sosig` | Analyze GitHub repositories and calculate social-signal metrics | `0.3.0` | Ready; `0.3.1` sdist switch pending |
 
