@@ -14,7 +14,7 @@ class G3 < Formula
   depends_on "go" => :build
 
   def install
-    system "go", "build", *std_go_args, "./cmd/g3"
+    system "go", "build", *std_go_args(ldflags: :goreleaser), "./cmd/g3"
   end
 
   test do

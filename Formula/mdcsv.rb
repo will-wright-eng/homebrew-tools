@@ -14,10 +14,11 @@ class Mdcsv < Formula
   depends_on "go" => :build
 
   def install
-    system "go", "build", *std_go_args, "."
+    system "go", "build", *std_go_args(ldflags: :goreleaser), "."
   end
 
   test do
     assert_match "usage: mdcsv", shell_output("#{bin}/mdcsv --help")
+    assert_match version.to_s, shell_output("#{bin}/mdcsv --version")
   end
 end
